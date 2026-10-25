@@ -6,6 +6,7 @@
 
 package dev.negi6.playerinfo;
 
+import dev.negi6.playerinfo.discord.DiscordService;
 import dev.negi6.playerinfo.stats.DeathStore;
 import dev.negi6.playerinfo.stats.FightStatsCommand;
 import dev.negi6.playerinfo.stats.FightTracker;
@@ -30,6 +31,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     private DeathStore deathStore;
     private LeaderboardService leaderboards;
     private WebServerService webServer;
+    private DiscordService discord;
 
     @Override
     public void onEnable() {
@@ -53,13 +55,20 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         PlayerTracker tracker = new PlayerTracker();
         plugins.registerEvents(tracker, this);
 
-        deathStore = new DeathStore(getDataFolder());
+        discord = new DiscordService(this, getDataFolder());
+        discord.start();
+
+        deathStore = new DeathStore(getDataFolder(), (uuid, record) -> {
+            String name = org.bukkit.Bukkit.getOfflinePlayer(uuid).getName();
+            discord.postDeath(name != null ? name : uuid.toString(), record);
+        });
         plugins.registerEvents(deathStore, this);
 
         fightTracker = new FightTracker(getDataFolder(),
                 getConfig().getBoolean("pvp-fight-tracking", true),
                 getConfig().getLong("fight-idle-timeout-seconds", 30) * 1000L,
-                getConfig().getInt("keep-fight-summaries", 50));
+                getConfig().getInt("keep-fight-summaries", 50),
+                discord::postFight);
         if (getConfig().getBoolean("pvp-fight-tracking", true)) {
             plugins.registerEvents(fightTracker, this);
         }
@@ -109,6 +118,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
                 getConfig().getBoolean("pvp-fight-tracking", true),
                 getConfig().getLong("fight-idle-timeout-seconds", 30) * 1000L,
                 getConfig().getInt("keep-fight-summaries", 50));
+        discord.applySettings();
     }
 
     private void applyJoinListener() {
@@ -130,6 +140,9 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         }
         if (leaderboards != null) {
             leaderboards.stop();
+        }
+        if (discord != null) {
+            discord.stop();
         }
         getLogger().info("PlayerInfo disabled");
     }

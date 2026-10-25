@@ -55,6 +55,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 public final class FightTracker implements Listener {
 
     private final File dataFile;
+    private final java.util.function.Consumer<Fight> onFightRecorded;
     private boolean trackNewFights;
     private long idleTimeoutMs;
     private int keptSummaries;
@@ -119,8 +120,10 @@ public final class FightTracker implements Listener {
     private final java.util.concurrent.ConcurrentSkipListMap<Integer, Fight> finished = new java.util.concurrent.ConcurrentSkipListMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
 
-    public FightTracker(File dataFolder, boolean trackNewFights, long idleTimeoutMs, int keptSummaries) {
+    public FightTracker(File dataFolder, boolean trackNewFights, long idleTimeoutMs, int keptSummaries,
+                        java.util.function.Consumer<Fight> onFightRecorded) {
         this.dataFile = new File(dataFolder, "fights.json");
+        this.onFightRecorded = onFightRecorded;
         applySettings(trackNewFights, idleTimeoutMs, keptSummaries);
         load();
     }
@@ -220,6 +223,9 @@ public final class FightTracker implements Listener {
             finished.remove(finished.keySet().iterator().next());
         }
         save();
+        if (onFightRecorded != null) {
+            onFightRecorded.accept(fight);
+        }
         event.deathMessage(deathMessage(victim, killer, fight));
     }
 

@@ -23,6 +23,19 @@ leaderboard-refresh-minutes: 5
 # Minutes of inactivity before a player counts as AFK (website badge).
 afk-minutes: 5
 
+# Announce (in chat + Discord) when a player reaches these playtime hours.
+milestones-hours: [10, 50, 100]
+
+# Post fights, challenge advancements, milestones and deaths to a Discord
+# channel webhook (Server Settings → Integrations → Webhooks).
+discord:
+  enabled: false
+  webhook-url: ""
+  post-fights: true
+  post-challenges: true
+  post-milestones: true
+  post-deaths: false
+
 # Built-in website: a dashboard served by the plugin at
 # http://<server-ip>:<port> showing stats, fights and leaderboards.
 web:

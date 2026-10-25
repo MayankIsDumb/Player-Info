@@ -44,12 +44,14 @@ public final class DeathStore implements Listener {
     private static final int MAX_PER_PLAYER = 20;
 
     private final File dataFile;
+    private final java.util.function.BiConsumer<UUID, DeathRecord> onDeathRecorded;
     private final Map<UUID, List<DeathRecord>> deaths = new HashMap<>();
 
     public record DeathRecord(long time, String world, int x, int y, int z, String cause) {}
 
-    public DeathStore(File dataFolder) {
+    public DeathStore(File dataFolder, java.util.function.BiConsumer<UUID, DeathRecord> onDeathRecorded) {
         this.dataFile = new File(dataFolder, "deaths.json");
+        this.onDeathRecorded = onDeathRecorded;
         load();
     }
 
@@ -68,6 +70,9 @@ public final class DeathStore implements Listener {
             list.removeLast();
         }
         save();
+        if (onDeathRecorded != null) {
+            onDeathRecorded.accept(player.getUniqueId(), record);
+        }
     }
 
     /** Newest first. */
