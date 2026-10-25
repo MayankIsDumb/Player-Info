@@ -107,3 +107,7 @@ run/                           Local test server data (gitignored)
   latest stable build of a line) and the `minecraftVersion("26.3")` line in
   `build.gradle.kts` (check https://repo.papermc.io for exact version strings). Mind that
   Paper 26.x requires **Java 25** (toolchain in `build.gradle.kts`).
+
+## License
+
+[MIT](LICENSE) © 2026 Mayank Negi (AFKZ Studios)
