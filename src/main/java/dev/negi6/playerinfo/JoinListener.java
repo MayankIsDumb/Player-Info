@@ -1,3 +1,9 @@
+/*
+ * PlayerInfo - Paper statistics & PvP fight summaries
+ * Copyright (c) 2026 Mayank Negi (AFKZ Studios)
+ * Licensed under the MIT License. See the LICENSE file for details.
+ */
+
 package dev.negi6.playerinfo;
 
 import net.kyori.adventure.text.Component;

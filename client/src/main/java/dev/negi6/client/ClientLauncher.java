@@ -1,3 +1,9 @@
+/*
+ * PlayerInfo vanilla client launcher
+ * Copyright (c) 2026 Mayank Negi (AFKZ Studios)
+ * Licensed under the MIT License. See the LICENSE file for details.
+ */
+
 package dev.negi6.client;
 
 import com.google.gson.JsonElement;

@@ -1,3 +1,9 @@
+/*
+ * PlayerInfo RCON dev tool
+ * Copyright (c) 2026 Mayank Negi (AFKZ Studios)
+ * Licensed under the MIT License. See the LICENSE file for details.
+ */
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;

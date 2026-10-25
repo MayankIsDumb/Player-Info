@@ -2,7 +2,9 @@ name: PlayerInfo
 version: '${version}'
 main: dev.negi6.playerinfo.PlayerInfoPlugin
 api-version: '1.21'
-author: negi6
+author: Mayank Negi
+authors: [AFKZ Studios]
+website: https://github.com/MayankIsDumb/Player-Info
 description: Shows information about players.
 
 commands:
