@@ -1,112 +1,106 @@
 # PlayerInfo
 
-A Paper statistics plugin with a vanilla-style statistics GUI, per-fight PvP
-summaries, and offline-player support. Works on **Paper (or forks like Purpur)
-1.21.1 through 26.x** — one jar for the whole range. Spigot is not supported
-(the plugin uses Paper-only APIs).
+A Paper statistics plugin for SMP servers: an in-game statistics GUI, PvP fight
+summaries with skin-head death messages, persistent fight history, a built-in
+**website** with player profiles / fights feed / leaderboards, a **Discord
+webhook**, playtime **ranks**, death log, advancement progress, and
+PlaceholderAPI support.
 
-**Server requirements:** Paper 1.21.1+ (or 26.x) and **Java 21+** (26.x servers
-already run Java 25). Old worlds are handled: offline-player stats are read
-from both the 26.x layout (`<world>/players/stats/`) and the legacy one
-(`<world>/stats/`).
-
-**Verified against the API of each line:** Minecraft 1.21.11, 26.1.x
-(26.1 / 26.1.1 / 26.1.2 — stable builds of that line ship as
-`26.1.2.build.N`), 26.2, and 26.3.
-
-**Configuration:** on first start the plugin creates
-`plugins/PlayerInfo/config.yml` — PvP fight tracking, the fight idle timeout,
-history size, and the join welcome message can all be toggled there. Fight
-summaries are stored in `plugins/PlayerInfo/fights.json`.
-
-A Paper plugin development environment targeting **Minecraft 26.3** (Paper API
-`26.3.build.+`, the new `<mc>.build.<n>-stable` versioning). A 1.21.11 backup of the
-dev world is kept in `run/world-1.21.11-backup`. The plugin itself compiles
-against `paper-api 1.21.1` with Java 21 bytecode for maximum compatibility;
-newer-only entries (e.g. Happy Ghast travel stats) resolve dynamically at
-runtime and are skipped on servers that lack them.
-- Gradle is **not** needed — the project ships the Gradle 9.8.2 wrapper, which downloads itself on first run.
-
-## Development commands
-
-Run these from the project root (in Git Bash / PowerShell / CMD):
-
-| Command | What it does |
-|---|---|
-| `./gradlew build` | Compiles the plugin and produces `build/libs/PlayerInfo-0.1.0.jar` |
-| `./gradlew runServer` | Boots a local Paper 26.3 test server in `run/` with your plugin loaded |
-| `./gradlew clean build` | Clean rebuild |
-
-`runServer` downloads the Paper server jar on first use (cached), pre-accepts the EULA
-(`run/eula.txt`), creates a fresh world, and hot-loads your plugin jar. Type `stop` in the
-server console to shut it down. To test the permission-gated command, run `op <yourname>`
-in the server console, then join and use `/playerinfo <player>`.
-
-To install the plugin on a real server, copy `build/libs/PlayerInfo-0.1.0.jar` into that
-server's `plugins/` folder.
+Works on **Paper (or forks like Purpur) 1.21.1 through 26.x** with Java 21+.
+Spigot is not supported (Paper-only APIs). MIT licensed — © Mayank Negi
+(AFKZ Studios).
 
 ## Commands
 
-| Command | Permission | What it does |
+| Command | Permission | Description |
 |---|---|---|
-| `/playerinfo <player>` | `playerinfo.use` (op) | Chat summary: UUID, world, location, health, gamemode, ping |
-| `/stats [player]` | `playerinfo.stats` (everyone, self only) | Opens the statistics GUI |
-| `/stats <player>` | `playerinfo.stats.others` (op) | Opens another online player's statistics GUI |
+| `/playerinfo <player>` | `playerinfo.use` (op) | Chat card: UUID, world, location, health, gamemode, ping, rank |
+| `/playerinfo reload` | `playerinfo.reload` (op) | Reload config.yml + messages.yml |
+| `/stats` | `playerinfo.stats` (everyone) | Opens your statistics GUI |
+| `/stats <player>` | `playerinfo.stats.others` (op) | Opens another player's GUI — online **or offline** |
+| `/stats compare <player>` | `playerinfo.stats.others` (op) | Side-by-side stat comparison |
+| `/stats hide` | everyone | Opt in/out of the public website |
+| `/stats setbio <text>` / `setfav` / `setbase` | everyone | Personalize your profile |
+| `/fightstats <id>` | everyone | Opens a PvP fight summary |
+| `/top [category]` | everyone | Leaderboards: playtime, blocks, mobs, distance, deaths, kills, kd |
 
-## The `/stats` GUI
+## The statistics GUI
 
-`/stats [player]` opens a profile screen with the player's skin head in the
-centre and options on the sides:
+`/stats` opens a profile screen with the player's skin head in the center:
 
-- **General** — all general vanilla statistics (play time, jumps, deaths, damage,
-  distances, trades, interactions), formatted (ticks → time, cm → m/km), paginated.
-- **Blocks** — every block mined, sorted by count, paginated.
-- **Items** — sub-menu: Crafted, Used, Broken, Picked Up, Dropped, Enchanted.
-- **Mobs** — sub-menu: Mobs Killed and Killed By, one icon per entity type.
-- **Players Killed / Times Died** — live counts on the profile screen; clicking
-  opens the per-entity lists behind them.
-- **Combat** — damage dealt, taken, absorbed, plus **critical hits**. Vanilla
-  does not track crits, so the plugin counts them itself (melee and critical
-  arrow hits) per session — counters reset when the player quits or the server
-  restarts.
-- **Login Info** — login time and session length (tracked since the player's
-  next join), first-ever join date, and the login IP. The IP is only shown to
-  the player themselves or to viewers with `playerinfo.stats.others`.
+- **General** — all vanilla statistics, formatted and paginated
+- **Blocks** — per-block mining counts
+- **Items** — crafted, used, broken, picked up, dropped, enchanted
+- **Mobs** — killed and killed-by lists
+- **Combat** — damage dealt/taken/absorbed + critical hits (plugin-tracked)
+- **Login Info** — session time, first join, IP (self/ops only)
+- **Death Log** — recent deaths with coordinates (click-to-copy in chat)
+- **Advancements** — "87/122 completed" with what's left
+- **Players Killed / Times Died** — drill down into the fight records
 
-Statistics are available for **online players** (live via the Bukkit API) and — for
-operators with `playerinfo.stats.others` — for **offline players** too: their stats are
-read from the vanilla stats files (`world/stats/<uuid>.json`). Offline profiles show
-last-seen/first-join dates instead of live login info, and tab completion suggests
-offline players as well.
+Offline players work: the plugin reads both the 26.x stats layout
+(`<world>/players/stats/`) and the legacy one (`<world>/stats/`).
 
-## Project layout
+## PvP fight summaries
 
+PvP deaths produce an interactive death message — the killer's name carries
+their **skin head** on hover and opens the fight summary when clicked. The
+summary shows hits, hits taken, crits, best combo, damage, arrows, potions and
+totems for both players. Fights are tracked live, persisted to
+`plugins/PlayerInfo/fights.json`, and survive restarts. Tracking can be turned
+off in the config.
+
+## Website
+
+The plugin embeds a dashboard at **`http://<server-ip>:8080`** (configurable):
+home page with the server IP and live player list, searchable player profiles
+with skin avatars, a recent-fights feed, and leaderboards. Web traffic never
+touches the game loop and the API is read-only.
+
+```yaml
+web:
+  enabled: true
+  port: 8080
+  bind: 0.0.0.0
+  site-name: "Server Stats"
+  server-address: ""      # shown on the home page, e.g. play.example.com
+  cache-seconds: 10
+  rate-limit-per-minute: 120
+  public-fights: true
 ```
-build.gradle.kts               Build config: Paper API dependency, Java 21, runServer task
-settings.gradle.kts            Project name
-src/main/java/dev/negi6/playerinfo/
-    PlayerInfoPlugin.java      Plugin entry point (JavaPlugin)
-    JoinListener.java          Example PlayerJoinEvent listener
-    PlayerInfoCommand.java     Example /playerinfo command with tab completion
-src/main/resources/plugin.yml Plugin metadata (name, main class, commands, permissions)
-run/                           Local test server data (gitignored)
+
+## Discord webhook
+
+Paste a webhook URL into the `discord:` section and the plugin posts PvP
+fights, completed challenges, playtime milestones and (optionally) deaths.
+Playtime milestones (10/50/100 hours by default) are also announced in-game.
+All toggles are in the config; `milestones-hours` controls the thresholds.
+
+## PlaceholderAPI
+
+When PlaceholderAPI is installed, `%playerinfo_playtime%`, `%playerinfo_blocks%`,
+`%playerinfo_mobs%`, `%playerinfo_distance%`, `%playerinfo_deaths%`,
+`%playerinfo_kills%`, `%playerinfo_rank%` and `%playerinfo_fights%` become
+available (values refresh with the leaderboard scan).
+
+## Configuration
+
+- `config.yml` — feature toggles, fight tracking, ranks, milestones, web,
+  Discord, AFK timeout (`afk-minutes`)
+- `messages.yml` — every chat message in MiniMessage format
+- `fights.json` / `deaths.json` / `ranks.json` / `milestones.json` /
+  `playerdata.json` / `hidden.json` — plugin data
+- Data files never contain IP addresses; the website never exposes them
+
+## Development
+
+```bash
+./gradlew build        # build the jar into build/libs/
+./gradlew runServer    # boot a Paper 26.3 test server with the plugin loaded
 ```
 
-## Making it yours
-
-- **Rename** the plugin: change `rootProject.name` in `settings.gradle.kts`, the package
-  `dev.negi6.playerinfo` in the Java sources, and the `main`/`name` entries in `plugin.yml`.
-- **Version** lives in `build.gradle.kts` and is injected into `plugin.yml` at build time.
-- **Dependencies**: the Paper API is `compileOnly` — everything it provides is present at
-  runtime on the server. Add other libraries with `compileOnly` or `implementation` +
-  shading as appropriate.
-- **NMS / internals**: if you later need Mojang-mapped internal code, add the
-  [paperweight-userdev](https://docs.papermc.io/paper/dev/userdev) Gradle setup — not needed
-  for API-only plugins.
-- **Upgrading Minecraft**: bump the `paper-api` version (use `<mc>.build.+` to track the
-  latest stable build of a line) and the `minecraftVersion("26.3")` line in
-  `build.gradle.kts` (check https://repo.papermc.io for exact version strings). Mind that
-  Paper 26.x requires **Java 25** (toolchain in `build.gradle.kts`).
+The jar is compiled against `paper-api 1.21.1` with Java 21 bytecode and
+verified against the APIs of 1.21.11, 26.1.x, 26.2 and 26.3.
 
 ## License
 

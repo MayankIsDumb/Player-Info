@@ -17,8 +17,9 @@ general:
   no-permission: "<red>You don't have permission to do that.</red>"
   players-only: "<red>Only in-game players can use this command.</red>"
   # Note: \< and \> are escaped so MiniMessage does not eat the brackets.
-  usage-playerinfo: "<red>Usage: /playerinfo \<player\></red>"
-  usage-stats-compare: "<red>Usage: /stats compare \<player\></red>"
+  # (Single-quoted YAML keeps the backslashes literal.)
+  usage-playerinfo: '<red>Usage: /playerinfo \<player\></red>'
+  usage-stats-compare: '<red>Usage: /stats compare \<player\></red>'
   unknown-offline-player: "<red>No player named '<white>{name}</white>' has played on this server.</red>"
   unknown-online-player: "<red>No online player named '<white>{name}</white>'.</red>"
   stats-no-permission: "<red>You don't have permission to view statistics.</red>"
