@@ -7,12 +7,14 @@
 package dev.negi6.playerinfo;
 
 import dev.negi6.playerinfo.discord.DiscordService;
+import dev.negi6.playerinfo.hooks.PlayerInfoExpansion;
 import dev.negi6.playerinfo.stats.DeathStore;
 import dev.negi6.playerinfo.stats.FightStatsCommand;
 import dev.negi6.playerinfo.stats.FightTracker;
 import dev.negi6.playerinfo.stats.LeaderboardService;
 import dev.negi6.playerinfo.stats.OptOutStore;
 import dev.negi6.playerinfo.stats.PlayerDataStore;
+import dev.negi6.playerinfo.stats.PlaytimeRanks;
 import dev.negi6.playerinfo.stats.PlayerTracker;
 import dev.negi6.playerinfo.stats.ServerData;
 import dev.negi6.playerinfo.stats.StatsCommand;
@@ -32,6 +34,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     private LeaderboardService leaderboards;
     private WebServerService webServer;
     private DiscordService discord;
+    private PlaytimeRanks playtimeRanks;
 
     @Override
     public void onEnable() {
@@ -47,7 +50,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
         PluginCommand command = getCommand("playerinfo");
         if (command != null) {
-            PlayerInfoCommand handler = new PlayerInfoCommand(this);
+            PlayerInfoCommand handler = new PlayerInfoCommand(this, playtimeRanks);
             command.setExecutor(handler);
             command.setTabCompleter(handler);
         }
@@ -75,6 +78,8 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
         OptOutStore optOut = new OptOutStore(getDataFolder());
         PlayerDataStore playerData = new PlayerDataStore(getDataFolder());
+        playtimeRanks = new PlaytimeRanks(this, getDataFolder());
+        playtimeRanks.start();
 
         leaderboards = new LeaderboardService(this,
                 getConfig().getLong("leaderboard-refresh-minutes", 5), optOut);
@@ -102,8 +107,14 @@ public final class PlayerInfoPlugin extends JavaPlugin {
             fightStats.setExecutor(new FightStatsCommand(fightTracker));
         }
 
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new PlayerInfoExpansion(this, playtimeRanks, leaderboards, fightTracker).register();
+            getLogger().info("PlaceholderAPI expansion registered.");
+        }
+
         if (getConfig().getBoolean("web.enabled", true)) {
-            webServer = new WebServerService(this, gui, fightTracker, leaderboards, optOut, playerData);
+            webServer = new WebServerService(this, gui, fightTracker, leaderboards,
+                    optOut, playerData, playtimeRanks);
             webServer.start();
         }
 
@@ -119,6 +130,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
                 getConfig().getLong("fight-idle-timeout-seconds", 30) * 1000L,
                 getConfig().getInt("keep-fight-summaries", 50));
         discord.applySettings();
+        playtimeRanks.applySettings();
     }
 
     private void applyJoinListener() {
@@ -140,6 +152,9 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         }
         if (leaderboards != null) {
             leaderboards.stop();
+        }
+        if (playtimeRanks != null) {
+            playtimeRanks.stop();
         }
         if (discord != null) {
             discord.stop();

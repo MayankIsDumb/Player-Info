@@ -5,6 +5,7 @@ api-version: '1.21'
 author: Mayank Negi
 authors: [AFKZ Studios]
 website: https://github.com/MayankIsDumb/Player-Info
+softdepend: [PlaceholderAPI]
 description: Shows information about players.
 
 commands:

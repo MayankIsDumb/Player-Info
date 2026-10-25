@@ -26,6 +26,22 @@ afk-minutes: 5
 # Announce (in chat + Discord) when a player reaches these playtime hours.
 milestones-hours: [10, 50, 100]
 
+# Playtime ranks: the highest threshold a player has crossed applies.
+# "commands" are run from the console with {player}, {rank} and {hours}.
+playtime-ranks:
+  enabled: true
+  thresholds:
+    - hours: 10
+      name: "Regular"
+    - hours: 50
+      name: "Veteran"
+      commands:
+        - "say {player} is now a {rank}!"
+    - hours: 100
+      name: "Legend"
+      commands:
+        - "say {player} is now a {rank}!"
+
 # Post fights, challenge advancements, milestones and deaths to a Discord
 # channel webhook (Server Settings → Integrations → Webhooks).
 discord:

@@ -149,9 +149,14 @@ public final class LeaderboardService {
         return new ArrayList<>(out.subList(0, Math.min(limit, out.size())));
     }
 
+    /** Aggregate value for one player and metric, or null if never scanned. */
+    public Long aggregateOf(UUID uuid, Metric metric) {
+        long[] values = aggregates.get(uuid);
+        return values == null ? null : values[metric.ordinal()];
+    }
+
     /** Server-wide total for one metric (KD unsupported). */
-    public long total(Metric metric) {
-        long sum = 0;
+    public long total(Metric metric) {        long sum = 0;
         for (var e : aggregates.entrySet()) {
             if (!optOut.isHidden(e.getKey())) {
                 sum += e.getValue()[metric.ordinal()];

@@ -36,6 +36,7 @@ public final class WebServerService {
     private final LeaderboardService leaderboards;
     private final dev.negi6.playerinfo.stats.OptOutStore optOut;
     private final dev.negi6.playerinfo.stats.PlayerDataStore playerData;
+    private final dev.negi6.playerinfo.stats.PlaytimeRanks playtimeRanks;
     private final SnapshotCache snapshot;
     private final Map<String, long[]> rateBuckets = new java.util.concurrent.ConcurrentHashMap<>();
     private com.sun.net.httpserver.HttpServer server;
@@ -43,13 +44,15 @@ public final class WebServerService {
 
     public WebServerService(JavaPlugin plugin, StatsGui gui, FightTracker fightTracker,
                             LeaderboardService leaderboards, dev.negi6.playerinfo.stats.OptOutStore optOut,
-                            dev.negi6.playerinfo.stats.PlayerDataStore playerData) {
+                            dev.negi6.playerinfo.stats.PlayerDataStore playerData,
+                            dev.negi6.playerinfo.stats.PlaytimeRanks playtimeRanks) {
         this.plugin = plugin;
         this.gui = gui;
         this.fightTracker = fightTracker;
         this.leaderboards = leaderboards;
         this.optOut = optOut;
         this.playerData = playerData;
+        this.playtimeRanks = playtimeRanks;
         this.snapshot = new SnapshotCache(plugin);
     }
 
@@ -156,7 +159,8 @@ public final class WebServerService {
         if (path.startsWith("/api/player/")) {
             String name = URLDecoder.decode(path.substring("/api/player/".length()),
                     StandardCharsets.UTF_8);
-            com.google.gson.JsonObject json = WebJson.playerJson(plugin, gui, name, optOut, playerData);
+            com.google.gson.JsonObject json = WebJson.playerJson(plugin, gui, name,
+                    optOut, playerData, playtimeRanks);
             if (json == null) {
                 respond(exchange, 404, "{\"error\":\"unknown player\"}");
                 return;

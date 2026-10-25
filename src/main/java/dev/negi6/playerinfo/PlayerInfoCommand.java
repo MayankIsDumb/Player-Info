@@ -9,10 +9,12 @@ package dev.negi6.playerinfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import dev.negi6.playerinfo.stats.PlaytimeRanks;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Statistic;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -22,9 +24,11 @@ import org.bukkit.entity.Player;
 public final class PlayerInfoCommand implements CommandExecutor, TabCompleter {
 
     private final PlayerInfoPlugin plugin;
+    private final PlaytimeRanks ranks;
 
-    public PlayerInfoCommand(PlayerInfoPlugin plugin) {
+    public PlayerInfoCommand(PlayerInfoPlugin plugin, PlaytimeRanks ranks) {
         this.plugin = plugin;
+        this.ranks = ranks;
     }
 
     @Override
@@ -61,6 +65,9 @@ public final class PlayerInfoCommand implements CommandExecutor, TabCompleter {
         sendInfo(sender, "Food", target.getFoodLevel() + "/20");
         sendInfo(sender, "Game mode", target.getGameMode().name());
         sendInfo(sender, "Ping", target.getPing() + " ms");
+        long playtimeHours = target.getStatistic(Statistic.PLAY_ONE_MINUTE) / 72000L;
+        PlaytimeRanks.Rank rank = ranks.rankOf(playtimeHours);
+        sendInfo(sender, "Rank", rank == null ? "None" : rank.name() + " (" + playtimeHours + "h)");
         return true;
     }
 

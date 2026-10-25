@@ -13,6 +13,7 @@ import dev.negi6.playerinfo.stats.FightTracker;
 import dev.negi6.playerinfo.stats.LeaderboardService;
 import dev.negi6.playerinfo.stats.OptOutStore;
 import dev.negi6.playerinfo.stats.PlayerDataStore;
+import dev.negi6.playerinfo.stats.PlaytimeRanks;
 import dev.negi6.playerinfo.stats.StatsGui;
 import dev.negi6.playerinfo.stats.StatsList;
 import dev.negi6.playerinfo.stats.StatsSource;
@@ -153,7 +154,8 @@ public final class WebJson {
      * stats files.
      */
     public static JsonObject playerJson(JavaPlugin plugin, StatsGui gui, String rawName,
-                                        OptOutStore optOut, PlayerDataStore playerData) throws Exception {
+                                        OptOutStore optOut, PlayerDataStore playerData,
+                                        PlaytimeRanks playtimeRanks) throws Exception {
         String name = URLDecoder.decode(rawName, StandardCharsets.UTF_8);
         record Lookup(UUID uuid, boolean online, String name, OfflinePlayer offline) {}
         Lookup lookup = MainThread.call(plugin, () -> {
@@ -188,13 +190,13 @@ public final class WebJson {
                 if (player == null) {
                     return null;
                 }
-                JsonObject built = buildStatsJson(gui, StatsSource.of(player));
+                JsonObject built = buildStatsJson(gui, StatsSource.of(player), playtimeRanks);
                 built.addProperty("firstPlayed", player.getFirstPlayed());
                 built.addProperty("lastSeen", player.getLastSeen());
                 return built;
             }, 5000);
         } else {
-            stats = buildStatsJson(gui, StatsSource.offline(lookup.offline()));
+            stats = buildStatsJson(gui, StatsSource.offline(lookup.offline()), playtimeRanks);
             stats.addProperty("firstPlayed", lookup.offline().getFirstPlayed());
             stats.addProperty("lastSeen", lookup.offline().getLastSeen());
         }
@@ -211,7 +213,7 @@ public final class WebJson {
         return value == null ? "" : value;
     }
 
-    private static JsonObject buildStatsJson(StatsGui gui, StatsSource src) {
+    private static JsonObject buildStatsJson(StatsGui gui, StatsSource src, PlaytimeRanks playtimeRanks) {
         JsonObject o = new JsonObject();
 
         JsonArray general = new JsonArray();
@@ -243,6 +245,10 @@ public final class WebJson {
         advJson.addProperty("done", advancements.done());
         advJson.addProperty("total", advancements.total());
         o.add("advancements", advJson);
+
+        PlaytimeRanks.Rank rank = playtimeRanks.rankOf(
+                src.untyped(org.bukkit.Statistic.PLAY_ONE_MINUTE) / 72000L);
+        o.addProperty("rank", rank == null ? "" : rank.name());
 
         return o;
     }

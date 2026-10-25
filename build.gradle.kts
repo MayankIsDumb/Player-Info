@@ -17,6 +17,9 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/") {
         name = "papermc"
     }
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/") {
+        name = "placeholderapi"
+    }
 }
 
 dependencies {
@@ -25,6 +28,8 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     // For reading offline players' vanilla stats files (world/stats/<uuid>.json).
     compileOnly("com.google.code.gson:gson:2.11.0")
+    // Optional integration: PlaceholderAPI placeholders (%playerinfo_*%).
+    compileOnly("me.clip:placeholderapi:2.11.6")
 }
 
 tasks {
