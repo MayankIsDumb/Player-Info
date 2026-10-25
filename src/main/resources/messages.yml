@@ -5,47 +5,46 @@
 #  Missing keys fall back to the defaults built into the plugin.
 # ============================================================
 
-messages:
-  # Shown before most chat messages.
-  prefix: "<gray>[</gray><gradient:#22c55e:#38bdf8><bold>PlayerInfo</bold></gradient><gray>]</gray> "
+# Shown before most chat messages.
+prefix: "<gray>[</gray><gradient:#22c55e:#38bdf8><bold>PlayerInfo</bold></gradient><gray>]</gray> "
 
-  join:
-    # Sent when a player joins.
-    welcome: "<gray>Welcome! Try /playerinfo to inspect players and /stats for your statistics.</gray>"
+join:
+  # Sent when a player joins.
+  welcome: "<gray>Welcome! Try /playerinfo to inspect players and /stats for your statistics.</gray>"
 
-  general:
-    reload-done: "<green>PlayerInfo configuration reloaded.</green>"
-    no-permission: "<red>You don't have permission to do that.</red>"
-    players-only: "<red>Only in-game players can use this command.</red>"
-    # Note: \< and \> are escaped so MiniMessage does not eat the brackets.
-    usage-playerinfo: "<red>Usage: /playerinfo \<player\></red>"
-    usage-stats-compare: "<red>Usage: /stats compare \<player\></red>"
-    unknown-offline-player: "<red>No player named '<white>{name}</white>' has played on this server.</red>"
-    unknown-online-player: "<red>No online player named '<white>{name}</white>'.</red>"
-    stats-no-permission: "<red>You don't have permission to view statistics.</red>"
-    compare-no-permission: "<red>You don't have permission to compare with other players.</red>"
-    self-stats-only: "<red>You can only view your own statistics.</red>"
+general:
+  reload-done: "<green>PlayerInfo configuration reloaded.</green>"
+  no-permission: "<red>You don't have permission to do that.</red>"
+  players-only: "<red>Only in-game players can use this command.</red>"
+  # Note: \< and \> are escaped so MiniMessage does not eat the brackets.
+  usage-playerinfo: "<red>Usage: /playerinfo \<player\></red>"
+  usage-stats-compare: "<red>Usage: /stats compare \<player\></red>"
+  unknown-offline-player: "<red>No player named '<white>{name}</white>' has played on this server.</red>"
+  unknown-online-player: "<red>No online player named '<white>{name}</white>'.</red>"
+  stats-no-permission: "<red>You don't have permission to view statistics.</red>"
+  compare-no-permission: "<red>You don't have permission to compare with other players.</red>"
+  self-stats-only: "<red>You can only view your own statistics.</red>"
 
-  stats:
-    hidden: "<yellow>Your statistics are now hidden from the website.</yellow>"
-    visible: "<green>Your statistics are visible on the website again.</green>"
-    setbio-updated: "<green>Bio updated.</green>"
-    setbio-cleared: "<gray>Bio cleared.</gray>"
-    setfav-updated: "<green>Favorite updated.</green>"
-    setfav-cleared: "<gray>Favorite cleared.</gray>"
-    setbase-saved: "<green>Base location saved: <white>{base}</white></green>"
+stats:
+  hidden: "<yellow>Your statistics are now hidden from the website.</yellow>"
+  visible: "<green>Your statistics are visible on the website again.</green>"
+  setbio-updated: "<green>Bio updated.</green>"
+  setbio-cleared: "<gray>Bio cleared.</gray>"
+  setfav-updated: "<green>Favorite updated.</green>"
+  setfav-cleared: "<gray>Favorite cleared.</gray>"
+  setbase-saved: "<green>Base location saved: <white>{base}</white></green>"
 
-  fight:
-    # The PvP death message: {victim} and {killer} names are added by the
-    # plugin around these texts (the killer name carries the skin-hover and
-    # the fight-summary click).
-    slain: "<gray>was slain by</gray>"
-    view-label: "<aqua><underlined>[View Fight]</underlined></aqua>"
+fight:
+  # The PvP death message: {victim} and {killer} names are added by the
+  # plugin around these texts (the killer name carries the skin-hover and
+  # the fight-summary click).
+  slain: "<gray>was slain by</gray>"
+  view-label: "<aqua><underlined>[View Fight]</underlined></aqua>"
 
-  deathlog:
-    # Clicking the chat line copies the coordinates. {time}, {world}, {coords}.
-    chat: "<gray>Death — </gray><gold>{time}</gold><gray> in {world} at </gray><aqua><underlined>{coords}</underlined></aqua>"
+deathlog:
+  # Clicking the chat line copies the coordinates. {time}, {world}, {coords}.
+  chat: "<gray>Death — </gray><gold>{time}</gold><gray> in {world} at </gray><aqua><underlined>{coords}</underlined></aqua>"
 
-  broadcast:
-    rank: "<gold>⭐ {player} is now a {rank}! ({hours}h)</gold>"
-    milestone: "<gold>⭐ {player} just hit {hours} hours of playtime!</gold>"
+broadcast:
+  rank: "<gold>⭐ {player} is now a {rank}! ({hours}h)</gold>"
+  milestone: "<gold>⭐ {player} just hit {hours} hours of playtime!</gold>"
