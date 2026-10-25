@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import dev.negi6.playerinfo.messages.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -56,6 +57,7 @@ public final class FightTracker implements Listener {
 
     private final File dataFile;
     private final java.util.function.Consumer<Fight> onFightRecorded;
+    private final Messages messages;
     private boolean trackNewFights;
     private long idleTimeoutMs;
     private int keptSummaries;
@@ -121,9 +123,10 @@ public final class FightTracker implements Listener {
     private final AtomicInteger nextId = new AtomicInteger();
 
     public FightTracker(File dataFolder, boolean trackNewFights, long idleTimeoutMs, int keptSummaries,
-                        java.util.function.Consumer<Fight> onFightRecorded) {
+                        java.util.function.Consumer<Fight> onFightRecorded, Messages messages) {
         this.dataFile = new File(dataFolder, "fights.json");
         this.onFightRecorded = onFightRecorded;
+        this.messages = messages;
         applySettings(trackNewFights, idleTimeoutMs, keptSummaries);
         load();
     }
@@ -259,13 +262,14 @@ public final class FightTracker implements Listener {
         Component killerName = Component.text(killer.getName(), NamedTextColor.YELLOW)
                 .hoverEvent(headFor(killer).asHoverEvent())
                 .clickEvent(ClickEvent.runCommand(command));
-        Component view = Component.text("[View Fight]", NamedTextColor.AQUA, TextDecoration.UNDERLINED)
+        Component view = messages.raw("fight.view-label")
                 .hoverEvent(HoverEvent.showText(
                         Component.text("Click to view the combat summary", NamedTextColor.GRAY)))
                 .clickEvent(ClickEvent.runCommand(command));
         return Component.text()
                 .append(Component.text(victim.getName(), NamedTextColor.RED))
-                .append(Component.text(" was slain by ", NamedTextColor.GRAY))
+                .append(messages.raw("fight.slain"))
+                .append(Component.space())
                 .append(killerName)
                 .append(Component.text("  ", NamedTextColor.DARK_GRAY))
                 .append(view)

@@ -6,12 +6,11 @@
 
 package dev.negi6.playerinfo.stats;
 
+import dev.negi6.playerinfo.messages.Messages;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
@@ -26,42 +25,38 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
     private final StatsGui gui;
     private final OptOutStore optOut;
     private final PlayerDataStore playerData;
+    private final Messages messages;
 
-    public StatsCommand(StatsGui gui, OptOutStore optOut, PlayerDataStore playerData) {
+    public StatsCommand(StatsGui gui, OptOutStore optOut, PlayerDataStore playerData, Messages messages) {
         this.gui = gui;
         this.optOut = optOut;
         this.playerData = playerData;
+        this.messages = messages;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player viewer)) {
-            sender.sendMessage(Component.text("Only in-game players can use this command.",
-                    NamedTextColor.RED));
+            sender.sendMessage(messages.chat("general.players-only"));
             return true;
         }
         if (args.length >= 1) {
             switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "hide" -> {
                     boolean nowHidden = optOut.toggle(viewer.getUniqueId());
-                    viewer.sendMessage(Component.text(nowHidden
-                            ? "Your statistics are now hidden from the website."
-                            : "Your statistics are visible on the website again.",
-                            nowHidden ? NamedTextColor.YELLOW : NamedTextColor.GREEN));
+                    viewer.sendMessage(messages.chat(nowHidden ? "stats.hidden" : "stats.visible"));
                     return true;
                 }
                 case "setbio" -> {
-                    playerData.set(viewer.getUniqueId(), PlayerDataStore.BIO, join(args, 100));
-                    viewer.sendMessage(Component.text(
-                            join(args, 100) == null ? "Bio cleared." : "Bio updated.",
-                            NamedTextColor.GREEN));
+                    String bio = join(args, 100);
+                    playerData.set(viewer.getUniqueId(), PlayerDataStore.BIO, bio);
+                    viewer.sendMessage(messages.chat(bio == null ? "stats.setbio-cleared" : "stats.setbio-updated"));
                     return true;
                 }
                 case "setfav" -> {
-                    playerData.set(viewer.getUniqueId(), PlayerDataStore.FAVORITE, join(args, 40));
-                    viewer.sendMessage(Component.text(
-                            join(args, 40) == null ? "Favorite cleared." : "Favorite updated.",
-                            NamedTextColor.GREEN));
+                    String favorite = join(args, 40);
+                    playerData.set(viewer.getUniqueId(), PlayerDataStore.FAVORITE, favorite);
+                    viewer.sendMessage(messages.chat(favorite == null ? "stats.setfav-cleared" : "stats.setfav-updated"));
                     return true;
                 }
                 case "setbase" -> {
@@ -69,26 +64,21 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
                     String base = loc.getBlockX() + " " + loc.getBlockY() + " " + loc.getBlockZ()
                             + " (" + loc.getWorld().getName() + ")";
                     playerData.set(viewer.getUniqueId(), PlayerDataStore.BASE, base);
-                    viewer.sendMessage(Component.text("Base location saved: " + base,
-                            NamedTextColor.GREEN));
+                    viewer.sendMessage(messages.chat("stats.setbase-saved", "base", base));
                     return true;
                 }
                 case "compare" -> {
                     if (args.length != 2) {
-                        viewer.sendMessage(Component.text("Usage: /stats compare <player>",
-                                NamedTextColor.RED));
+                        viewer.sendMessage(messages.raw("general.usage-stats-compare"));
                         return true;
                     }
                     if (!viewer.hasPermission("playerinfo.stats.others")) {
-                        viewer.sendMessage(Component.text(
-                                "You don't have permission to compare with other players.",
-                                NamedTextColor.RED));
+                        viewer.sendMessage(messages.chat("general.compare-no-permission"));
                         return true;
                     }
                     StatsSource other = resolve(args[1]);
                     if (other == null) {
-                        viewer.sendMessage(Component.text("No player named '" + args[1]
-                                + "' has played on this server.", NamedTextColor.RED));
+                        viewer.sendMessage(messages.chat("general.unknown-offline-player", "name", args[1]));
                         return true;
                     }
                     gui.openCompare(viewer, StatsSource.of(viewer), other);
@@ -100,22 +90,19 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 0) {
             if (!viewer.hasPermission("playerinfo.stats")) {
-                viewer.sendMessage(Component.text("You don't have permission to view statistics.",
-                        NamedTextColor.RED));
+                viewer.sendMessage(messages.chat("general.stats-no-permission"));
                 return true;
             }
             gui.open(viewer, StatsSource.of(viewer), StatsMenuHolder.Screen.ROOT, null, 0);
             return true;
         }
         if (!viewer.hasPermission("playerinfo.stats.others")) {
-            viewer.sendMessage(Component.text("You can only view your own statistics.",
-                    NamedTextColor.RED));
+            viewer.sendMessage(messages.chat("general.self-stats-only"));
             return true;
         }
         StatsSource target = resolve(args[0]);
         if (target == null) {
-            viewer.sendMessage(Component.text("No player named '" + args[0]
-                    + "' has played on this server.", NamedTextColor.RED));
+            viewer.sendMessage(messages.chat("general.unknown-offline-player", "name", args[0]));
             return true;
         }
         gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);

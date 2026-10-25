@@ -8,6 +8,7 @@ package dev.negi6.playerinfo;
 
 import dev.negi6.playerinfo.discord.DiscordService;
 import dev.negi6.playerinfo.hooks.PlayerInfoExpansion;
+import dev.negi6.playerinfo.messages.Messages;
 import dev.negi6.playerinfo.stats.DeathStore;
 import dev.negi6.playerinfo.stats.FightStatsCommand;
 import dev.negi6.playerinfo.stats.FightTracker;
@@ -35,6 +36,11 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     private WebServerService webServer;
     private DiscordService discord;
     private PlaytimeRanks playtimeRanks;
+    private Messages messages;
+
+    public Messages messages() {
+        return messages;
+    }
 
     @Override
     public void onEnable() {
@@ -45,8 +51,14 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         ServerData.init(getServer().getWorldContainer().toPath()
                 .resolve(getServer().getWorlds().get(0).getName()));
 
+        messages = new Messages(this);
         PluginManager plugins = getServer().getPluginManager();
         applyJoinListener();
+
+        OptOutStore optOut = new OptOutStore(getDataFolder());
+        PlayerDataStore playerData = new PlayerDataStore(getDataFolder());
+        playtimeRanks = new PlaytimeRanks(this, getDataFolder());
+        playtimeRanks.start();
 
         PluginCommand command = getCommand("playerinfo");
         if (command != null) {
@@ -64,22 +76,17 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         deathStore = new DeathStore(getDataFolder(), (uuid, record) -> {
             String name = org.bukkit.Bukkit.getOfflinePlayer(uuid).getName();
             discord.postDeath(name != null ? name : uuid.toString(), record);
-        });
+        }, messages);
         plugins.registerEvents(deathStore, this);
 
         fightTracker = new FightTracker(getDataFolder(),
                 getConfig().getBoolean("pvp-fight-tracking", true),
                 getConfig().getLong("fight-idle-timeout-seconds", 30) * 1000L,
                 getConfig().getInt("keep-fight-summaries", 50),
-                discord::postFight);
+                discord::postFight, messages);
         if (getConfig().getBoolean("pvp-fight-tracking", true)) {
             plugins.registerEvents(fightTracker, this);
         }
-
-        OptOutStore optOut = new OptOutStore(getDataFolder());
-        PlayerDataStore playerData = new PlayerDataStore(getDataFolder());
-        playtimeRanks = new PlaytimeRanks(this, getDataFolder());
-        playtimeRanks.start();
 
         leaderboards = new LeaderboardService(this,
                 getConfig().getLong("leaderboard-refresh-minutes", 5), optOut);
@@ -97,7 +104,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
         PluginCommand stats = getCommand("stats");
         if (stats != null) {
-            StatsCommand statsHandler = new StatsCommand(gui, optOut, playerData);
+            StatsCommand statsHandler = new StatsCommand(gui, optOut, playerData, messages);
             stats.setExecutor(statsHandler);
             stats.setTabCompleter(statsHandler);
         }
@@ -124,6 +131,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     /** Re-reads config.yml and applies it without a restart. */
     void reloadSettings() {
         reloadConfig();
+        messages.reload();
         applyJoinListener();
         fightTracker.applySettings(
                 getConfig().getBoolean("pvp-fight-tracking", true),
@@ -139,7 +147,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
             joinListener = null;
         }
         if (getConfig().getBoolean("join-welcome-message", true)) {
-            joinListener = new JoinListener();
+            joinListener = new JoinListener(messages);
             getServer().getPluginManager().registerEvents(joinListener, this);
         }
     }

@@ -35,23 +35,23 @@ public final class PlayerInfoCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             if (!sender.hasPermission("playerinfo.reload")) {
-                sender.sendMessage(Component.text("You don't have permission to reload PlayerInfo.",
-                        NamedTextColor.RED));
+                sender.sendMessage(plugin.messages().chat("general.no-permission"));
                 return true;
             }
             plugin.reloadSettings();
-            sender.sendMessage(Component.text("PlayerInfo configuration reloaded.", NamedTextColor.GREEN));
+            sender.sendMessage(plugin.messages().chat("general.reload-done"));
             return true;
         }
 
         if (args.length == 0) {
-            sender.sendMessage(Component.text("Usage: /" + label + " <player>", NamedTextColor.RED));
+            sender.sendMessage(plugin.messages().raw("general.usage-playerinfo"));
             return true;
         }
 
         Player target = Bukkit.getPlayerExact(args[0]);
         if (target == null) {
-            sender.sendMessage(Component.text("No online player named '" + args[0] + "'.", NamedTextColor.RED));
+            sender.sendMessage(plugin.messages().chat("general.unknown-online-player",
+                    "name", args[0]));
             return true;
         }
 

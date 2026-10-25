@@ -19,10 +19,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import dev.negi6.playerinfo.messages.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -45,13 +44,16 @@ public final class DeathStore implements Listener {
 
     private final File dataFile;
     private final java.util.function.BiConsumer<UUID, DeathRecord> onDeathRecorded;
+    private final Messages messages;
     private final Map<UUID, List<DeathRecord>> deaths = new HashMap<>();
 
     public record DeathRecord(long time, String world, int x, int y, int z, String cause) {}
 
-    public DeathStore(File dataFolder, java.util.function.BiConsumer<UUID, DeathRecord> onDeathRecorded) {
+    public DeathStore(File dataFolder, java.util.function.BiConsumer<UUID, DeathRecord> onDeathRecorded,
+                      Messages messages) {
         this.dataFile = new File(dataFolder, "deaths.json");
         this.onDeathRecorded = onDeathRecorded;
+        this.messages = messages;
         load();
     }
 
@@ -88,16 +90,11 @@ public final class DeathStore implements Listener {
     /** A clickable chat line that copies the coordinates to the clipboard. */
     public Component chatMessage(DeathRecord record) {
         String coords = record.x() + " " + record.y() + " " + record.z();
-        return Component.text()
-                .append(Component.text("Death — ", NamedTextColor.GRAY))
-                .append(Component.text(StatsGui.dateTime(record.time()), NamedTextColor.GOLD))
-                .append(Component.text(" in " + record.world() + " at ", NamedTextColor.GRAY))
-                .append(Component.text(coords, NamedTextColor.AQUA,
-                        net.kyori.adventure.text.format.TextDecoration.UNDERLINED))
-                .hoverEvent(HoverEvent.showText(Component.text(
-                        "Click to copy coordinates", NamedTextColor.GRAY)))
-                .clickEvent(ClickEvent.copyToClipboard(coords))
-                .build();
+        return messages.raw("deathlog.chat",
+                "time", StatsGui.dateTime(record.time()),
+                "world", record.world(),
+                "coords", coords)
+            .clickEvent(ClickEvent.copyToClipboard(coords));
     }
 
     private void save() {

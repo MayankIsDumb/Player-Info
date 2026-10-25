@@ -37,14 +37,14 @@ public final class PlaytimeRanks {
 
     public record Rank(long hours, String name, List<String> commands) {}
 
-    private final JavaPlugin plugin;
+    private final dev.negi6.playerinfo.PlayerInfoPlugin plugin;
     private final File dataFile;
     private final Map<UUID, Long> announced = new HashMap<>();
     private final List<Rank> ranks = new ArrayList<>();
     private boolean enabled = true;
     private BukkitTask task;
 
-    public PlaytimeRanks(JavaPlugin plugin, File dataFolder) {
+    public PlaytimeRanks(dev.negi6.playerinfo.PlayerInfoPlugin plugin, File dataFolder) {
         this.plugin = plugin;
         this.dataFile = new File(dataFolder, "ranks.json");
     }
@@ -105,8 +105,10 @@ public final class PlaytimeRanks {
             if (rank.hours() > previously) {
                 announced.put(player.getUniqueId(), rank.hours());
                 save();
-                Bukkit.broadcast(Component.text("⭐ " + player.getName() + " is now a "
-                        + rank.name() + "! (" + hours + "h)", NamedTextColor.GOLD));
+                Bukkit.broadcast(plugin.messages().raw("broadcast.rank",
+                        "player", player.getName(),
+                        "rank", rank.name(),
+                        "hours", String.valueOf(hours)));
                 for (String command : rank.commands()) {
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
                             .replace("{player}", player.getName())
