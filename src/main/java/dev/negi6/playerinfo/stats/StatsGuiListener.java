@@ -110,6 +110,15 @@ public final class StatsGuiListener implements Listener {
                     gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);
                 }
             }
+            case LEADERBOARD -> {
+                if (slot == StatsGui.SLOT_BACK) {
+                    Bukkit.getScheduler().runTask(plugin, (Runnable) viewer::closeInventory);
+                } else if (slot < 45 && slot < holder.entryKeys().size()
+                        && holder.entryKeys().get(slot) instanceof UUID player) {
+                    gui.open(viewer, StatsSource.ofUuid(player),
+                            StatsMenuHolder.Screen.ROOT, null, 0);
+                }
+            }
             case ITEMS_SUB, MOBS_SUB -> {
                 if (slot == StatsGui.SLOT_BACK) {
                     gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);

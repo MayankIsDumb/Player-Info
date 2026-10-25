@@ -21,6 +21,9 @@ commands:
   fightstats:
     description: View a PvP fight summary (also opened by clicking a death message).
     usage: /fightstats <id>
+  top:
+    description: Open the server leaderboard.
+    usage: /top [playtime|blocks|mobs|distance|deaths|kills|kd]
 
 permissions:
   playerinfo.use:

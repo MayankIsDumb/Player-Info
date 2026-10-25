@@ -9,10 +9,12 @@ package dev.negi6.playerinfo;
 import dev.negi6.playerinfo.stats.DeathStore;
 import dev.negi6.playerinfo.stats.FightStatsCommand;
 import dev.negi6.playerinfo.stats.FightTracker;
+import dev.negi6.playerinfo.stats.LeaderboardService;
 import dev.negi6.playerinfo.stats.PlayerTracker;
 import dev.negi6.playerinfo.stats.StatsCommand;
 import dev.negi6.playerinfo.stats.StatsGui;
 import dev.negi6.playerinfo.stats.StatsGuiListener;
+import dev.negi6.playerinfo.stats.TopCommand;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,6 +24,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     private JoinListener joinListener;
     private FightTracker fightTracker;
     private DeathStore deathStore;
+    private LeaderboardService leaderboards;
 
     @Override
     public void onEnable() {
@@ -51,8 +54,19 @@ public final class PlayerInfoPlugin extends JavaPlugin {
             plugins.registerEvents(fightTracker, this);
         }
 
-        StatsGui gui = new StatsGui(tracker, fightTracker, deathStore);
+        leaderboards = new LeaderboardService(this,
+                getConfig().getLong("leaderboard-refresh-minutes", 5));
+        leaderboards.start();
+
+        StatsGui gui = new StatsGui(tracker, fightTracker, deathStore, leaderboards);
         plugins.registerEvents(new StatsGuiListener(this, gui, fightTracker, deathStore), this);
+
+        PluginCommand top = getCommand("top");
+        if (top != null) {
+            TopCommand topHandler = new TopCommand(gui, leaderboards);
+            top.setExecutor(topHandler);
+            top.setTabCompleter(topHandler);
+        }
 
         PluginCommand stats = getCommand("stats");
         if (stats != null) {
@@ -92,6 +106,9 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (leaderboards != null) {
+            leaderboards.stop();
+        }
         getLogger().info("PlayerInfo disabled");
     }
 }

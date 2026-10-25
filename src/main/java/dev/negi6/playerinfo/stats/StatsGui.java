@@ -140,11 +140,14 @@ public final class StatsGui {
     private final PlayerTracker tracker;
     private final FightTracker fightTracker;
     private final DeathStore deathStore;
+    private final LeaderboardService leaderboards;
 
-    public StatsGui(PlayerTracker tracker, FightTracker fightTracker, DeathStore deathStore) {
+    public StatsGui(PlayerTracker tracker, FightTracker fightTracker, DeathStore deathStore,
+                    LeaderboardService leaderboards) {
         this.tracker = tracker;
         this.fightTracker = fightTracker;
         this.deathStore = deathStore;
+        this.leaderboards = leaderboards;
     }
 
     public void open(Player viewer, StatsSource target, StatsMenuHolder.Screen screen, StatsList list, int page) {
@@ -495,9 +498,14 @@ public final class StatsGui {
     }
 
     private Inventory newMenu(StatsMenuHolder holder, String title) {
-        String suffix = holder.target().isOnline() ? "" : " (offline)";
-        Component fullTitle = Component.text(title + " — " + holder.target().name() + suffix,
-                NamedTextColor.DARK_GRAY);
+        String suffix;
+        if (holder.target() == null) {
+            suffix = "";
+        } else {
+            suffix = " — " + holder.target().name()
+                    + (holder.target().isOnline() ? "" : " (offline)");
+        }
+        Component fullTitle = Component.text(title + suffix, NamedTextColor.DARK_GRAY);
         Inventory inv = Bukkit.createInventory(holder, 54, fullTitle);
         holder.inventory(inv);
         for (int i = 0; i < inv.getSize(); i++) {
@@ -639,5 +647,53 @@ public final class StatsGui {
             return String.format(Locale.ROOT, "%d m", centimetres / 100);
         }
         return centimetres + " cm";
+    }
+
+    public void openLeaderboard(Player viewer, LeaderboardService.Metric metric, int page) {
+        List<LeaderboardService.Entry> top = leaderboards.top(metric, 50);
+        List<Entry> entries = new ArrayList<>();
+        List<Object> keys = new ArrayList<>();
+        int rank = 1;
+        for (LeaderboardService.Entry entry : top) {
+            keys.add(entry.player());
+            entries.add(new Entry(playerName(entry.player()), rank,
+                    leaderboardHead(entry.player(), rank, valueText(metric, entry.value()))));
+            rank++;
+        }
+        openListPage(viewer, null, entries, keys, StatsMenuHolder.Screen.LEADERBOARD,
+                null, null, "Top " + label(metric), page);
+    }
+
+    private ItemStack leaderboardHead(UUID player, int rank, String valueText) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+        meta.setOwningPlayer(Bukkit.getOfflinePlayer(player));
+        meta.displayName(Component.text("#" + rank + " " + playerName(player), NamedTextColor.GOLD));
+        meta.lore(List.of(
+                Component.text(valueText, NamedTextColor.AQUA),
+                Component.text("Click to view profile", NamedTextColor.DARK_GRAY)));
+        head.setItemMeta(meta);
+        return head;
+    }
+
+    private static String valueText(LeaderboardService.Metric metric, long value) {
+        return switch (metric) {
+            case PLAYTIME -> ticks(value);
+            case DISTANCE -> cm(value);
+            case KD -> String.format(Locale.ROOT, "%.2f", value / 1000.0);
+            default -> fmt(value);
+        };
+    }
+
+    private static String label(LeaderboardService.Metric metric) {
+        return switch (metric) {
+            case PLAYTIME -> "Playtime";
+            case BLOCKS -> "Blocks Mined";
+            case MOBS -> "Mobs Killed";
+            case DISTANCE -> "Distance";
+            case DEATHS -> "Deaths";
+            case KILLS -> "Player Kills";
+            case KD -> "K/D Ratio";
+        };
     }
 }

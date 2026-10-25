@@ -16,3 +16,6 @@ keep-fight-summaries: 50
 
 # Send a small welcome hint when a player joins.
 join-welcome-message: true
+
+# How often the leaderboards re-scan player statistics (minutes).
+leaderboard-refresh-minutes: 5
