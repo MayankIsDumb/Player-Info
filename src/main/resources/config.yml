@@ -20,6 +20,9 @@ join-welcome-message: true
 # How often the leaderboards re-scan player statistics (minutes).
 leaderboard-refresh-minutes: 5
 
+# Minutes of inactivity before a player counts as AFK (website badge).
+afk-minutes: 5
+
 # Built-in website: a dashboard served by the plugin at
 # http://<server-ip>:<port> showing stats, fights and leaderboards.
 web:
@@ -32,3 +35,7 @@ web:
   server-address: ""
   # How often the live data (players online etc.) refreshes (seconds).
   cache-seconds: 10
+  # API requests allowed per IP per minute (0 = unlimited).
+  rate-limit-per-minute: 120
+  # Show the PvP fights feed on the website.
+  public-fights: true

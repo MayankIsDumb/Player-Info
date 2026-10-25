@@ -40,7 +40,7 @@ async function renderHome() {
   const players = s.players.map((p) => `
     <a class="player-card" href="#/player/${encodeURIComponent(p.name)}">
       <img src="${head(p.name, 40)}" alt="">
-      <div><div class="p-name">${esc(p.name)}</div>
+      <div><div class="p-name">${esc(p.name)}${p.afk ? ' <span class="afk">AFK</span>' : ''}</div>
       <div class="p-sub">${esc(p.gamemode)} — ${esc(p.world)} — ${p.ping}ms</div></div>
     </a>`).join('');
   app.innerHTML = `
@@ -87,6 +87,12 @@ async function renderProfile(name) {
         <div class="sub-line">First join: ${esc(dateStr(p.firstPlayed))} — Last seen: ${esc(dateStr(p.lastSeen))}</div>
       </div>
     </div>
+    ${(p.profile && (p.profile.bio || p.profile.favorite || p.profile.base)) ? `
+    <section class="panel"><h2>About</h2>
+      ${p.profile.bio ? `<div class="quote">“${esc(p.profile.bio)}”</div>` : ''}
+      ${p.profile.favorite ? `<div class="about-line">Favorite: ${esc(p.profile.favorite)}</div>` : ''}
+      ${p.profile.base ? `<div class="about-line">Base: ${esc(p.profile.base)}</div>` : ''}
+    </section>` : ''}
     <section class="panel">
       <h2>Advancements</h2>
       <div class="progress-label">${p.advancements.done} / ${p.advancements.total} (${pct}%)</div>
@@ -189,6 +195,35 @@ document.getElementById('search').addEventListener('submit', (e) => {
   e.preventDefault();
   const value = document.getElementById('search-box').value.trim();
   if (value) location.hash = '#/player/' + encodeURIComponent(value);
+});
+
+/* search autocomplete */
+const searchBox = document.getElementById('search-box');
+const drop = document.createElement('div');
+drop.className = 'search-drop';
+document.getElementById('search').appendChild(drop);
+let searchDebounce;
+searchBox.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(async () => {
+    const q = searchBox.value.trim();
+    if (q.length < 2) { drop.innerHTML = ''; return; }
+    try {
+      const d = await api('search?query=' + encodeURIComponent(q));
+      drop.innerHTML = d.results.map((r) =>
+        `<div class="sr" data-n="${esc(r.name)}"><img src="${head(r.name, 24)}">${esc(r.name)}</div>`).join('');
+      drop.querySelectorAll('.sr').forEach((el) => {
+        el.onclick = () => {
+          location.hash = '#/player/' + encodeURIComponent(el.dataset.n);
+          drop.innerHTML = '';
+          searchBox.value = '';
+        };
+      });
+    } catch (_) { drop.innerHTML = ''; }
+  }, 200);
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#search')) drop.innerHTML = '';
 });
 
 window.addEventListener('hashchange', route);

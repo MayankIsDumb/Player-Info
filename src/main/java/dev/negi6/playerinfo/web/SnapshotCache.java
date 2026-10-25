@@ -21,7 +21,7 @@ import org.bukkit.scheduler.BukkitTask;
  */
 public final class SnapshotCache {
 
-    public record OnlinePlayer(String name, String world, String gamemode, int ping) {}
+    public record OnlinePlayer(String name, String world, String gamemode, int ping, boolean afk) {}
 
     public record ServerSnapshot(String siteName, String serverAddress, String motd, String version,
                                  int online, int max, List<OnlinePlayer> players, long builtAt) {}
@@ -58,10 +58,12 @@ public final class SnapshotCache {
         String siteName = web == null ? "Server Stats" : web.getString("site-name", "Server Stats");
         String address = web == null ? "" : web.getString("server-address", "");
         List<OnlinePlayer> players = new ArrayList<>();
+        long afkMinutes = plugin.getConfig().getLong("afk-minutes", 5);
         for (Player player : Bukkit.getOnlinePlayers()) {
+            boolean afk = player.getIdleDuration().toMinutes() >= afkMinutes;
             players.add(new OnlinePlayer(player.getName(),
                     player.getWorld() == null ? "?" : player.getWorld().getName(),
-                    player.getGameMode().name(), player.getPing()));
+                    player.getGameMode().name(), player.getPing(), afk));
         }
         current = new ServerSnapshot(siteName, address, Bukkit.getMotd(),
                 Bukkit.getMinecraftVersion(), players.size(), Bukkit.getMaxPlayers(),

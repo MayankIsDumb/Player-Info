@@ -10,6 +10,8 @@ import dev.negi6.playerinfo.stats.DeathStore;
 import dev.negi6.playerinfo.stats.FightStatsCommand;
 import dev.negi6.playerinfo.stats.FightTracker;
 import dev.negi6.playerinfo.stats.LeaderboardService;
+import dev.negi6.playerinfo.stats.OptOutStore;
+import dev.negi6.playerinfo.stats.PlayerDataStore;
 import dev.negi6.playerinfo.stats.PlayerTracker;
 import dev.negi6.playerinfo.stats.ServerData;
 import dev.negi6.playerinfo.stats.StatsCommand;
@@ -62,11 +64,14 @@ public final class PlayerInfoPlugin extends JavaPlugin {
             plugins.registerEvents(fightTracker, this);
         }
 
+        OptOutStore optOut = new OptOutStore(getDataFolder());
+        PlayerDataStore playerData = new PlayerDataStore(getDataFolder());
+
         leaderboards = new LeaderboardService(this,
-                getConfig().getLong("leaderboard-refresh-minutes", 5));
+                getConfig().getLong("leaderboard-refresh-minutes", 5), optOut);
         leaderboards.start();
 
-        StatsGui gui = new StatsGui(tracker, fightTracker, deathStore, leaderboards);
+        StatsGui gui = new StatsGui(tracker, fightTracker, deathStore, leaderboards, playerData);
         plugins.registerEvents(new StatsGuiListener(this, gui, fightTracker, deathStore), this);
 
         PluginCommand top = getCommand("top");
@@ -78,7 +83,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
         PluginCommand stats = getCommand("stats");
         if (stats != null) {
-            StatsCommand statsHandler = new StatsCommand(gui);
+            StatsCommand statsHandler = new StatsCommand(gui, optOut, playerData);
             stats.setExecutor(statsHandler);
             stats.setTabCompleter(statsHandler);
         }
@@ -89,7 +94,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         }
 
         if (getConfig().getBoolean("web.enabled", true)) {
-            webServer = new WebServerService(this, gui, fightTracker, leaderboards);
+            webServer = new WebServerService(this, gui, fightTracker, leaderboards, optOut, playerData);
             webServer.start();
         }
 

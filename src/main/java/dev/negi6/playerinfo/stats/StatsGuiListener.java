@@ -110,6 +110,14 @@ public final class StatsGuiListener implements Listener {
                     gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);
                 }
             }
+            case COMPARE -> {
+                if (slot == StatsGui.SLOT_BACK || slot == 3) {
+                    gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);
+                } else if (slot == 5 && holder.other() != null) {
+                    gui.open(viewer, StatsSource.ofUuid(holder.other()),
+                            StatsMenuHolder.Screen.ROOT, null, 0);
+                }
+            }
             case LEADERBOARD -> {
                 if (slot == StatsGui.SLOT_BACK) {
                     Bukkit.getScheduler().runTask(plugin, (Runnable) viewer::closeInventory);

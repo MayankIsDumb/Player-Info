@@ -152,13 +152,15 @@ public final class StatsGui {
     private final FightTracker fightTracker;
     private final DeathStore deathStore;
     private final LeaderboardService leaderboards;
+    private final PlayerDataStore playerData;
 
     public StatsGui(PlayerTracker tracker, FightTracker fightTracker, DeathStore deathStore,
-                    LeaderboardService leaderboards) {
+                    LeaderboardService leaderboards, PlayerDataStore playerData) {
         this.tracker = tracker;
         this.fightTracker = fightTracker;
         this.deathStore = deathStore;
         this.leaderboards = leaderboards;
+        this.playerData = playerData;
     }
 
     public void open(Player viewer, StatsSource target, StatsMenuHolder.Screen screen, StatsList list, int page) {
@@ -446,6 +448,85 @@ public final class StatsGui {
                 null, null, "Advancements", page);
     }
 
+    private record CompareRow(String label, Material icon, String targetValue, String otherValue) {}
+
+    /** Side-by-side comparison of two players' key statistics. */
+    public void openCompare(Player viewer, StatsSource target, StatsSource other) {
+        StatsMenuHolder holder = new StatsMenuHolder(target, StatsMenuHolder.Screen.COMPARE,
+                null, 0, other.uuid());
+        Inventory inv = newMenu(holder, "Compare");
+        inv.setItem(3, compareHead(target, "You"));
+        inv.setItem(5, compareHead(other, "Them"));
+        List<CompareRow> rows = List.of(
+                new CompareRow("Playtime", Material.CLOCK,
+                        ticks(target.untyped(Statistic.PLAY_ONE_MINUTE)),
+                        ticks(other.untyped(Statistic.PLAY_ONE_MINUTE))),
+                new CompareRow("Blocks Mined", Material.GRASS_BLOCK,
+                        fmt(target.minedTotal()), fmt(other.minedTotal())),
+                new CompareRow("Mobs Killed", Material.IRON_SWORD,
+                        fmt(target.untyped(Statistic.MOB_KILLS)),
+                        fmt(other.untyped(Statistic.MOB_KILLS))),
+                new CompareRow("Distance", Material.LEATHER_BOOTS,
+                        cm(target.distanceTotal()), cm(other.distanceTotal())),
+                new CompareRow("Deaths", Material.SKELETON_SKULL,
+                        fmt(target.untyped(Statistic.DEATHS)), fmt(other.untyped(Statistic.DEATHS))),
+                new CompareRow("Player Kills", Material.PLAYER_HEAD,
+                        fmt(target.untyped(Statistic.PLAYER_KILLS)),
+                        fmt(other.untyped(Statistic.PLAYER_KILLS))),
+                new CompareRow("K/D", Material.GOLD_INGOT,
+                        kd(target.untyped(Statistic.PLAYER_KILLS), target.untyped(Statistic.DEATHS)),
+                        kd(other.untyped(Statistic.PLAYER_KILLS), other.untyped(Statistic.DEATHS))),
+                new CompareRow("Damage Dealt", Material.DIAMOND_AXE,
+                        dmg(target.untyped(Statistic.DAMAGE_DEALT)),
+                        dmg(other.untyped(Statistic.DAMAGE_DEALT))),
+                new CompareRow("Damage Taken", Material.COBWEB,
+                        dmg(target.untyped(Statistic.DAMAGE_TAKEN)),
+                        dmg(other.untyped(Statistic.DAMAGE_TAKEN))),
+                new CompareRow("Jumps", Material.RABBIT_FOOT,
+                        fmt(target.untyped(Statistic.JUMP)), fmt(other.untyped(Statistic.JUMP))),
+                new CompareRow("Trades Made", Material.EMERALD,
+                        fmt(target.untyped(Statistic.TRADED_WITH_VILLAGER)),
+                        fmt(other.untyped(Statistic.TRADED_WITH_VILLAGER))),
+                new CompareRow("Sneak Time", Material.GRAY_DYE,
+                        ticks(target.untyped(Statistic.SNEAK_TIME)),
+                        ticks(other.untyped(Statistic.SNEAK_TIME))));
+        for (int i = 0; i < rows.size(); i++) {
+            CompareRow row = rows.get(i);
+            inv.setItem(compareSlot(i, true), item(row.icon(),
+                    Component.text(row.label(), NamedTextColor.AQUA),
+                    List.of(Component.text(row.targetValue(), NamedTextColor.GREEN))));
+            inv.setItem(compareSlot(i, false), item(row.icon(),
+                    Component.text(row.label(), NamedTextColor.AQUA),
+                    List.of(Component.text(row.otherValue(), NamedTextColor.GOLD))));
+        }
+        inv.setItem(SLOT_BACK, button(Material.BARRIER, "Back", "Return"));
+        viewer.openInventory(inv);
+    }
+
+    private static int compareSlot(int index, boolean left) {
+        int row = index / 4;
+        int col = index % 4;
+        return (row + 1) * 9 + col + (left ? 0 : 5);
+    }
+
+    private ItemStack compareHead(StatsSource target, String title) {
+        ItemStack stack = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) stack.getItemMeta();
+        meta.setOwningPlayer(target.player());
+        meta.displayName(Component.text(title + ": " + target.name(), NamedTextColor.GOLD));
+        meta.lore(List.of(Component.text("Click to view profile", NamedTextColor.DARK_GRAY)));
+        stack.setItemMeta(meta);
+        return stack;
+    }
+
+    private static String kd(long kills, long deaths) {
+        return String.format(Locale.ROOT, "%.2f", kills * 1.0 / Math.max(1, deaths));
+    }
+
+    private static String dmg(long units) {
+        return wholeOrOneDecimal(units / 10.0) + " pts";
+    }
+
     private void openPlayerFights(Player viewer, StatsSource target, StatsList originList, int page) {
         Map<UUID, Integer> counts = new HashMap<>();
         for (FightTracker.Fight fight : fightTracker.fightsInvolving(target.uuid())) {
@@ -531,6 +612,11 @@ public final class StatsGui {
         meta.setOwningPlayer(target.player());
         meta.displayName(Component.text(target.name(), NamedTextColor.GOLD));
         List<Component> lore = new ArrayList<>();
+        String bio = playerData.get(target.uuid(), PlayerDataStore.BIO);
+        if (bio != null) {
+            lore.add(Component.text("“" + bio + "”", NamedTextColor.GRAY,
+                    net.kyori.adventure.text.format.TextDecoration.ITALIC));
+        }
         if (target.isOnline()) {
             Instant login = tracker.loginTime(target.uuid());
             lore.add(Component.text("Session: "
@@ -541,6 +627,14 @@ public final class StatsGui {
             lore.add(Component.text("Offline — last seen "
                     + (lastSeen > 0 ? DATE_TIME.format(Instant.ofEpochMilli(lastSeen)) : "unknown"),
                     NamedTextColor.GRAY));
+        }
+        String favorite = playerData.get(target.uuid(), PlayerDataStore.FAVORITE);
+        if (favorite != null) {
+            lore.add(Component.text("Favorite: " + favorite, NamedTextColor.GRAY));
+        }
+        String base = playerData.get(target.uuid(), PlayerDataStore.BASE);
+        if (base != null) {
+            lore.add(Component.text("Base: " + base, NamedTextColor.GRAY));
         }
         lore.add(Component.text("Mob Kills: " + fmt(target.untyped(Statistic.MOB_KILLS)), NamedTextColor.GRAY));
         meta.lore(lore);

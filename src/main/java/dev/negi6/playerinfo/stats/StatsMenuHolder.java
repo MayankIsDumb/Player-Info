@@ -18,7 +18,7 @@ import org.bukkit.inventory.InventoryHolder;
  */
 public final class StatsMenuHolder implements InventoryHolder {
 
-    public enum Screen { ROOT, GENERAL, ITEMS_SUB, MOBS_SUB, LIST, COMBAT, LOGIN_INFO, KILLER_PLAYERS, FIGHT_RECORDS, DEATH_LOG, ADVANCEMENTS, LEADERBOARD }
+    public enum Screen { ROOT, GENERAL, ITEMS_SUB, MOBS_SUB, LIST, COMBAT, LOGIN_INFO, KILLER_PLAYERS, FIGHT_RECORDS, DEATH_LOG, ADVANCEMENTS, LEADERBOARD, COMPARE }
 
     private final StatsSource target;
     private final Screen screen;

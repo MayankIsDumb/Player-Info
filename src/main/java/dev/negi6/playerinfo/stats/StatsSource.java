@@ -172,6 +172,61 @@ public final class StatsSource {
         return group == null ? 0 : longOf(group, type.getKey().toString());
     }
 
+    /** Total blocks mined across all materials. */
+    public long minedTotal() {
+        if (online != null) {
+            long sum = 0;
+            for (Material material : Material.values()) {
+                if (material.isAir() || !material.isBlock()) {
+                    continue;
+                }
+                try {
+                    sum += online.getStatistic(Statistic.MINE_BLOCK, material);
+                } catch (Exception unsupportedPairing) {
+                    // skip
+                }
+            }
+            return sum;
+        }
+        JsonObject mined = groups.get("mined");
+        if (mined == null) {
+            return 0;
+        }
+        long sum = 0;
+        for (var entry : mined.entrySet()) {
+            sum += longOf(mined, entry.getKey());
+        }
+        return sum;
+    }
+
+    /** Total distance traveled across all distance statistics (centimetres). */
+    public long distanceTotal() {
+        if (online != null) {
+            long sum = 0;
+            for (Statistic statistic : Statistic.values()) {
+                if (statistic.name().endsWith("_ONE_CM")) {
+                    try {
+                        sum += online.getStatistic(statistic);
+                    } catch (Exception unsupportedPairing) {
+                        // skip
+                    }
+                }
+            }
+            return sum;
+        }
+        JsonObject customObject = custom;
+        if (customObject == null) {
+            return 0;
+        }
+        long sum = 0;
+        for (var entry : customObject.entrySet()) {
+            if (entry.getKey().endsWith("_one_cm")) {
+                sum += longOf(customObject, entry.getKey());
+            }
+        }
+        return sum;
+    }
+
     private static long longOf(JsonObject object, String key) {
         return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsLong() : 0;
     }

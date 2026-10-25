@@ -64,13 +64,36 @@ public final class LeaderboardService {
 
     private final JavaPlugin plugin;
     private final long refreshMs;
+    private final OptOutStore optOut;
     private volatile Map<UUID, long[]> aggregates = Map.of();
+    private volatile Map<UUID, String> names = Map.of();
     private volatile long lastScan;
     private BukkitTask task;
 
-    public LeaderboardService(JavaPlugin plugin, long refreshMinutes) {
+    public LeaderboardService(JavaPlugin plugin, long refreshMinutes, OptOutStore optOut) {
         this.plugin = plugin;
         this.refreshMs = Math.max(1, refreshMinutes) * 60_000L;
+        this.optOut = optOut;
+    }
+
+    public record SearchHit(UUID uuid, String name) {}
+
+    /** Player names starting with the query (for website autocomplete). */
+    public List<SearchHit> search(String query, int limit) {
+        String q = query.toLowerCase(java.util.Locale.ROOT);
+        List<SearchHit> out = new ArrayList<>();
+        for (var entry : names.entrySet()) {
+            if (optOut.isHidden(entry.getKey())) {
+                continue;
+            }
+            if (entry.getValue().toLowerCase(java.util.Locale.ROOT).startsWith(q)) {
+                out.add(new SearchHit(entry.getKey(), entry.getValue()));
+                if (out.size() >= limit) {
+                    break;
+                }
+            }
+        }
+        return out;
     }
 
     public void start() {
@@ -102,6 +125,9 @@ public final class LeaderboardService {
         List<Entry> out = new ArrayList<>();
         if (metric == Metric.KD) {
             for (var e : aggregates.entrySet()) {
+                if (optOut.isHidden(e.getKey())) {
+                    continue;
+                }
                 long kills = e.getValue()[SLOT_KILLS];
                 long deaths = e.getValue()[SLOT_DEATHS];
                 if (kills > 0) {
@@ -110,6 +136,9 @@ public final class LeaderboardService {
             }
         } else {
             for (var e : aggregates.entrySet()) {
+                if (optOut.isHidden(e.getKey())) {
+                    continue;
+                }
                 long value = e.getValue()[metric.ordinal()];
                 if (value > 0) {
                     out.add(new Entry(e.getKey(), value));
@@ -123,8 +152,10 @@ public final class LeaderboardService {
     /** Server-wide total for one metric (KD unsupported). */
     public long total(Metric metric) {
         long sum = 0;
-        for (long[] values : aggregates.values()) {
-            sum += values[metric.ordinal()];
+        for (var e : aggregates.entrySet()) {
+            if (!optOut.isHidden(e.getKey())) {
+                sum += e.getValue()[metric.ordinal()];
+            }
         }
         return sum;
     }
@@ -132,11 +163,20 @@ public final class LeaderboardService {
     private void scan() {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Map<UUID, long[]> parsed = scanFiles();
+            Map<UUID, String> parsedNames = new HashMap<>();
+            for (UUID uuid : parsed.keySet()) {
+                String name = Bukkit.getOfflinePlayer(uuid).getName();
+                if (name != null) {
+                    parsedNames.put(uuid, name);
+                }
+            }
             Bukkit.getScheduler().runTask(plugin, () -> {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     parsed.put(player.getUniqueId(), liveValues(player));
+                    parsedNames.put(player.getUniqueId(), player.getName());
                 }
                 aggregates = parsed;
+                names = parsedNames;
                 lastScan = System.currentTimeMillis();
                 plugin.getLogger().info("[PlayerInfo] Leaderboards updated for "
                         + parsed.size() + " players.");

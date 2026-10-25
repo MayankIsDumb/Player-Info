@@ -18,6 +18,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -33,16 +34,22 @@ public final class WebServerService {
     private final StatsGui gui;
     private final FightTracker fightTracker;
     private final LeaderboardService leaderboards;
+    private final dev.negi6.playerinfo.stats.OptOutStore optOut;
+    private final dev.negi6.playerinfo.stats.PlayerDataStore playerData;
     private final SnapshotCache snapshot;
+    private final Map<String, long[]> rateBuckets = new java.util.concurrent.ConcurrentHashMap<>();
     private com.sun.net.httpserver.HttpServer server;
     private java.util.concurrent.ExecutorService executor;
 
     public WebServerService(JavaPlugin plugin, StatsGui gui, FightTracker fightTracker,
-                            LeaderboardService leaderboards) {
+                            LeaderboardService leaderboards, dev.negi6.playerinfo.stats.OptOutStore optOut,
+                            dev.negi6.playerinfo.stats.PlayerDataStore playerData) {
         this.plugin = plugin;
         this.gui = gui;
         this.fightTracker = fightTracker;
         this.leaderboards = leaderboards;
+        this.optOut = optOut;
+        this.playerData = playerData;
         this.snapshot = new SnapshotCache(plugin);
     }
 
@@ -108,6 +115,10 @@ public final class WebServerService {
     }
 
     private void api(HttpExchange exchange, String path) throws Exception {
+        if (!allowRate(exchange)) {
+            respond(exchange, 429, "{\"error\":\"rate limited\"}");
+            return;
+        }
         if (path.equals("/api/server")) {
             respond(exchange, 200, WebJson.serverJson(snapshot).toString());
             return;
@@ -117,7 +128,13 @@ public final class WebServerService {
             return;
         }
         if (path.equals("/api/fights")) {
-            respond(exchange, 200, WebJson.fightsJson(fightTracker).toString());
+            boolean publicFights = configFlag("public-fights", true);
+            respond(exchange, 200, WebJson.fightsJson(fightTracker, optOut, publicFights).toString());
+            return;
+        }
+        if (path.equals("/api/search")) {
+            String query = queryParam(exchange, "query");
+            respond(exchange, 200, WebJson.searchJson(leaderboards, query, 10).toString());
             return;
         }
         if (path.startsWith("/api/fights/")) {
@@ -139,7 +156,7 @@ public final class WebServerService {
         if (path.startsWith("/api/player/")) {
             String name = URLDecoder.decode(path.substring("/api/player/".length()),
                     StandardCharsets.UTF_8);
-            com.google.gson.JsonObject json = WebJson.playerJson(plugin, gui, name);
+            com.google.gson.JsonObject json = WebJson.playerJson(plugin, gui, name, optOut, playerData);
             if (json == null) {
                 respond(exchange, 404, "{\"error\":\"unknown player\"}");
                 return;
@@ -159,6 +176,51 @@ public final class WebServerService {
             return;
         }
         respond(exchange, 404, "{\"error\":\"not found\"}");
+    }
+
+    private boolean allowRate(HttpExchange exchange) {
+        long perMinute = configLong("rate-limit-per-minute", 120);
+        if (perMinute <= 0) {
+            return true;
+        }
+        String ip = exchange.getRemoteAddress().getAddress().getHostAddress();
+        long now = System.currentTimeMillis();
+        long[] bucket = rateBuckets.computeIfAbsent(ip, key -> new long[]{now, perMinute});
+        synchronized (bucket) {
+            if (now - bucket[0] >= 60_000) {
+                bucket[0] = now;
+                bucket[1] = perMinute;
+            }
+            if (bucket[1] <= 0) {
+                return false;
+            }
+            bucket[1]--;
+            return true;
+        }
+    }
+
+    private boolean configFlag(String key, boolean def) {
+        ConfigurationSection web = plugin.getConfig().getConfigurationSection("web");
+        return web == null ? def : web.getBoolean(key, def);
+    }
+
+    private long configLong(String key, long def) {
+        ConfigurationSection web = plugin.getConfig().getConfigurationSection("web");
+        return web == null ? def : web.getLong(key, def);
+    }
+
+    private static String queryParam(HttpExchange exchange, String key) {
+        String raw = exchange.getRequestURI().getRawQuery();
+        if (raw == null) {
+            return "";
+        }
+        for (String pair : raw.split("&")) {
+            String[] kv = pair.split("=", 2);
+            if (kv[0].equals(key)) {
+                return URLDecoder.decode(kv.length > 1 ? kv[1] : "", StandardCharsets.UTF_8);
+            }
+        }
+        return "";
     }
 
     private void serveResource(HttpExchange exchange, String resource, String contentType)

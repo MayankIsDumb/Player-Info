@@ -11,6 +11,8 @@ import com.google.gson.JsonObject;
 import dev.negi6.playerinfo.stats.AdvancementSource;
 import dev.negi6.playerinfo.stats.FightTracker;
 import dev.negi6.playerinfo.stats.LeaderboardService;
+import dev.negi6.playerinfo.stats.OptOutStore;
+import dev.negi6.playerinfo.stats.PlayerDataStore;
 import dev.negi6.playerinfo.stats.StatsGui;
 import dev.negi6.playerinfo.stats.StatsList;
 import dev.negi6.playerinfo.stats.StatsSource;
@@ -54,6 +56,7 @@ public final class WebJson {
             po.addProperty("world", p.world());
             po.addProperty("gamemode", p.gamemode());
             po.addProperty("ping", p.ping());
+            po.addProperty("afk", p.afk());
             players.add(po);
         }
         o.add("players", players);
@@ -91,12 +94,31 @@ public final class WebJson {
         return o;
     }
 
-    public static JsonArray fightsJson(FightTracker tracker) {
+    public static JsonArray fightsJson(FightTracker tracker, OptOutStore optOut, boolean publicFights) {
         JsonArray array = new JsonArray();
+        if (!publicFights) {
+            return array;
+        }
         for (FightTracker.Fight fight : tracker.allFightsNewestFirst()) {
+            if (optOut.isHidden(fight.winner()) || optOut.isHidden(fight.loser())) {
+                continue;
+            }
             array.add(fightJson(fight));
         }
         return array;
+    }
+
+    /** Search results for the website autocomplete. */
+    public static JsonObject searchJson(LeaderboardService leaderboards, String query, int limit) {
+        JsonObject o = new JsonObject();
+        JsonArray results = new JsonArray();
+        for (LeaderboardService.SearchHit hit : leaderboards.search(query, limit)) {
+            JsonObject r = new JsonObject();
+            r.addProperty("name", hit.name());
+            results.add(r);
+        }
+        o.add("results", results);
+        return o;
     }
 
     public static JsonObject fightJson(FightTracker.Fight fight) {
@@ -130,7 +152,8 @@ public final class WebJson {
      * Online players are read on the main thread; offline players from their
      * stats files.
      */
-    public static JsonObject playerJson(JavaPlugin plugin, StatsGui gui, String rawName) throws Exception {
+    public static JsonObject playerJson(JavaPlugin plugin, StatsGui gui, String rawName,
+                                        OptOutStore optOut, PlayerDataStore playerData) throws Exception {
         String name = URLDecoder.decode(rawName, StandardCharsets.UTF_8);
         record Lookup(UUID uuid, boolean online, String name, OfflinePlayer offline) {}
         Lookup lookup = MainThread.call(plugin, () -> {
@@ -144,13 +167,19 @@ public final class WebJson {
             }
             return null;
         }, 3000);
-        if (lookup == null) {
+        if (lookup == null || optOut.isHidden(lookup.uuid())) {
             return null;
         }
 
         JsonObject o = new JsonObject();
         o.addProperty("name", lookup.name());
         o.addProperty("online", lookup.online());
+
+        JsonObject profile = new JsonObject();
+        profile.addProperty("bio", nullToEmpty(playerData.get(lookup.uuid(), PlayerDataStore.BIO)));
+        profile.addProperty("favorite", nullToEmpty(playerData.get(lookup.uuid(), PlayerDataStore.FAVORITE)));
+        profile.addProperty("base", nullToEmpty(playerData.get(lookup.uuid(), PlayerDataStore.BASE)));
+        o.add("profile", profile);
 
         JsonObject stats;
         if (lookup.online()) {
@@ -176,6 +205,10 @@ public final class WebJson {
             o.add(key, stats.get(key));
         }
         return o;
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private static JsonObject buildStatsJson(StatsGui gui, StatsSource src) {
