@@ -72,9 +72,7 @@ public final class AdvancementSource {
     }
 
     private static Set<String> doneFromFile(UUID uuid) {
-        Path worldPath = Bukkit.getWorlds().isEmpty()
-                ? null
-                : Bukkit.getWorlds().get(0).getWorldFolder().toPath();
+        Path worldPath = ServerData.worldPath();
         if (worldPath == null) {
             return Set.of();
         }

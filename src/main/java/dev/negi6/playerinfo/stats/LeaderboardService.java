@@ -146,11 +146,10 @@ public final class LeaderboardService {
 
     private Map<UUID, long[]> scanFiles() {
         Map<UUID, long[]> out = new HashMap<>();
-        World world = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
-        if (world == null) {
+        Path worldPath = ServerData.worldPath();
+        if (worldPath == null) {
             return out;
         }
-        Path worldPath = world.getWorldFolder().toPath();
         List<Path> dirs = List.of(worldPath.resolve("players").resolve("stats"),
                 worldPath.resolve("stats"));
         for (Path dir : dirs) {

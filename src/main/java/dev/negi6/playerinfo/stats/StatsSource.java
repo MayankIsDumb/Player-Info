@@ -21,7 +21,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Statistic;
-import org.bukkit.World;
+
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 
@@ -72,11 +72,10 @@ public final class StatsSource {
     }
 
     private static JsonObject readStatsFile(UUID uuid) {
-        World world = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
-        if (world == null) {
+        Path worldPath = ServerData.worldPath();
+        if (worldPath == null) {
             return null;
         }
-        Path worldPath = world.getWorldFolder().toPath();
         // Minecraft 26.x stores stats under <world>/players/stats/; older worlds
         // used <world>/stats/ — check both so upgraded worlds keep working.
         List<Path> candidates = List.of(
@@ -88,7 +87,9 @@ public final class StatsSource {
                 continue;
             }
             try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                return JsonParser.parseReader(reader).getAsJsonObject();
+                JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+                // The file nests everything under "stats" — return that object.
+                return root.has("stats") ? root.getAsJsonObject("stats") : root;
             } catch (Exception brokenStatsFile) {
                 Bukkit.getLogger().warning("[PlayerInfo] Could not read stats file for " + uuid + ": "
                         + brokenStatsFile.getMessage());
@@ -119,6 +120,18 @@ public final class StatsSource {
         return player.getUniqueId();
     }
 
+    /** Bukkit enum names that differ from the vanilla stat ids in stats files. */
+    private static final Map<String, String> VANILLA_ALIASES = Map.of(
+            "PLAY_ONE_MINUTE", "play_time",
+            "DROP_COUNT", "dropped",
+            "RECORD_PLAYED", "play_record",
+            "CRAFTING_TABLE_INTERACTION", "interact_with_crafting_table",
+            "FURNACE_INTERACTION", "interact_with_furnace",
+            "CHEST_OPENED", "open_chest",
+            "ENDERCHEST_OPENED", "open_enderchest",
+            "BREWINGSTAND_INTERACTION", "interact_with_brewingstand",
+            "BEACON_INTERACTION", "interact_with_beacon");
+
     public long untyped(Statistic stat) {
         if (online != null) {
             return online.getStatistic(stat);
@@ -129,7 +142,8 @@ public final class StatsSource {
         long value = longOf(custom, "minecraft:" + stat.getKey().getKey());
         if (value == 0) {
             // Fallback for stats whose Bukkit name differs from the vanilla id.
-            value = longOf(custom, "minecraft:" + stat.name().toLowerCase(Locale.ROOT));
+            value = longOf(custom, "minecraft:" + VANILLA_ALIASES.getOrDefault(
+                    stat.name(), stat.name().toLowerCase(Locale.ROOT)));
         }
         return value;
     }

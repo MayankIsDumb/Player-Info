@@ -11,6 +11,7 @@ import dev.negi6.playerinfo.stats.FightStatsCommand;
 import dev.negi6.playerinfo.stats.FightTracker;
 import dev.negi6.playerinfo.stats.LeaderboardService;
 import dev.negi6.playerinfo.stats.PlayerTracker;
+import dev.negi6.playerinfo.stats.ServerData;
 import dev.negi6.playerinfo.stats.StatsCommand;
 import dev.negi6.playerinfo.stats.StatsGui;
 import dev.negi6.playerinfo.stats.StatsGuiListener;
@@ -31,6 +32,11 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+
+        // Capture the world folder on the main thread — background readers
+        // (leaderboard scans, website) must not call Bukkit.getWorlds().
+        ServerData.init(getServer().getWorldContainer().toPath()
+                .resolve(getServer().getWorlds().get(0).getName()));
 
         PluginManager plugins = getServer().getPluginManager();
         applyJoinListener();
