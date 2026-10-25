@@ -1,0 +1,35 @@
+name: PlayerInfo
+version: '${version}'
+main: dev.negi6.playerinfo.PlayerInfoPlugin
+api-version: '1.21'
+author: negi6
+description: Shows information about players.
+
+commands:
+  playerinfo:
+    description: Show information about a player.
+    usage: /playerinfo <player>
+    aliases: [pinfo]
+    permission: playerinfo.use
+  stats:
+    description: Open the statistics screen of a player.
+    usage: /stats [player]
+    aliases: [statistics]
+    permission: playerinfo.stats
+  fightstats:
+    description: View a PvP fight summary (also opened by clicking a death message).
+    usage: /fightstats <id>
+
+permissions:
+  playerinfo.use:
+    description: Allows using /playerinfo
+    default: op
+  playerinfo.reload:
+    description: Allows reloading the PlayerInfo configuration (/playerinfo reload)
+    default: op
+  playerinfo.stats:
+    description: Allows opening your own statistics GUI
+    default: true
+  playerinfo.stats.others:
+    description: Open the statistics GUI of other players (also reveals their IP on the Login Info page)
+    default: op

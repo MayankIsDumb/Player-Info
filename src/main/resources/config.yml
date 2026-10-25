@@ -1,0 +1,18 @@
+# ============================================================
+#  PlayerInfo configuration
+# ============================================================
+
+# Track PvP fights (hits, crits, combos, damage), persist them to
+# fights.json, and show interactive PvP death messages with a
+# clickable fight summary. When false, existing history stays
+# viewable but no new fights are recorded.
+pvp-fight-tracking: true
+
+# How long (seconds) after the last hit a fight stays active.
+fight-idle-timeout-seconds: 30
+
+# How many fight summaries are kept in fights.json.
+keep-fight-summaries: 50
+
+# Send a small welcome hint when a player joins.
+join-welcome-message: true

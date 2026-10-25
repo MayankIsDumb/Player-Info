@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# Local test server created by `gradlew runServer`
+run/
+
+# Downloaded Minecraft client files and client game data
+client/vanilla/
+client/run/
+.zcode/
