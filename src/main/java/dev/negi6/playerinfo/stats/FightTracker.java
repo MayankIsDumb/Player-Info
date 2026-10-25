@@ -60,9 +60,9 @@ public final class FightTracker implements Listener {
     private int keptSummaries;
 
     /** Per-player combat counters for one fight. */
-    static final class Side {
-        int hits, hitsTaken, crits, bestCombo, currentCombo, arrowsHit, potsThrown, totems;
-        double damageDealt, damageTaken;
+    public static final class Side {
+        public int hits, hitsTaken, crits, bestCombo, currentCombo, arrowsHit, potsThrown, totems;
+        public double damageDealt, damageTaken;
     }
 
     public static final class Fight {
@@ -80,8 +80,12 @@ public final class FightTracker implements Listener {
             this.b = b;
         }
 
-        Side side(UUID player) {
+        public Side side(UUID player) {
             return sides.computeIfAbsent(player, key -> new Side());
+        }
+
+        Map<UUID, Side> sides() {
+            return sides;
         }
 
         boolean involves(UUID player) {
@@ -112,7 +116,7 @@ public final class FightTracker implements Listener {
     }
 
     private final List<Fight> active = new ArrayList<>();
-    private final Map<Integer, Fight> finished = new LinkedHashMap<>();
+    private final java.util.concurrent.ConcurrentSkipListMap<Integer, Fight> finished = new java.util.concurrent.ConcurrentSkipListMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
 
     public FightTracker(File dataFolder, boolean trackNewFights, long idleTimeoutMs, int keptSummaries) {
@@ -222,6 +226,15 @@ public final class FightTracker implements Listener {
     /** The finished fight with the given id, or null (ids count up per install). */
     public Fight finished(int id) {
         return finished.get(id);
+    }
+
+    /** All kept fights, newest first (safe for web threads). */
+    public List<Fight> allFightsNewestFirst() {
+        List<Fight> out = new ArrayList<>();
+        for (Fight fight : finished.descendingMap().values()) {
+            out.add(fight);
+        }
+        return out;
     }
 
     /** Finished fights (this session) in which the given player took part. */

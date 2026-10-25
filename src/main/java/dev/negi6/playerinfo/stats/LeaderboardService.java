@@ -37,6 +37,20 @@ public final class LeaderboardService {
 
     public enum Metric { PLAYTIME, BLOCKS, MOBS, DISTANCE, DEATHS, KILLS, KD }
 
+    /** Resolves a user-supplied category name, or null if unknown. */
+    public static Metric parseMetric(String name) {
+        return switch (name.toLowerCase(java.util.Locale.ROOT)) {
+            case "playtime", "time" -> Metric.PLAYTIME;
+            case "blocks", "mined" -> Metric.BLOCKS;
+            case "mobs" -> Metric.MOBS;
+            case "distance" -> Metric.DISTANCE;
+            case "deaths" -> Metric.DEATHS;
+            case "kills" -> Metric.KILLS;
+            case "kd" -> Metric.KD;
+            default -> null;
+        };
+    }
+
     public record Entry(UUID player, long value) {}
 
     /** Aggregate slots: indexed by the ordinals of PLAYTIME..KILLS. */

@@ -67,7 +67,18 @@ public final class StatsGui {
 
     private record GeneralStat(Statistic stat, String label, Material icon, Fmt fmt) {}
 
-    private record Entry(String name, long value, ItemStack icon) {}
+    public record Entry(String name, long value, ItemStack icon) {}
+
+    /** One formatted stat row for the website API. */
+    public record WebStat(String label, String formatted) {}
+
+    public static List<WebStat> generalWebStats(StatsSource target) {
+        List<WebStat> out = new ArrayList<>();
+        for (GeneralStat gs : GENERAL_STATS) {
+            out.add(new WebStat(gs.label(), valueText(gs, target.untyped(gs.stat()))));
+        }
+        return out;
+    }
 
     private static final List<GeneralStat> GENERAL_STATS = buildGeneralStats();
 
@@ -335,7 +346,7 @@ public final class StatsGui {
         viewer.openInventory(inv);
     }
 
-    private List<Entry> listEntries(StatsSource target, StatsList list, List<Object> keys) {
+    public List<Entry> listEntries(StatsSource target, StatsList list, List<Object> keys) {
         List<Entry> entries = new ArrayList<>();
         switch (list.kind) {
             case MATERIAL -> {

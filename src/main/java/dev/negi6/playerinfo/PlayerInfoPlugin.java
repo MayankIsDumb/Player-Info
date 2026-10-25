@@ -15,6 +15,7 @@ import dev.negi6.playerinfo.stats.StatsCommand;
 import dev.negi6.playerinfo.stats.StatsGui;
 import dev.negi6.playerinfo.stats.StatsGuiListener;
 import dev.negi6.playerinfo.stats.TopCommand;
+import dev.negi6.playerinfo.web.WebServerService;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -25,6 +26,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     private FightTracker fightTracker;
     private DeathStore deathStore;
     private LeaderboardService leaderboards;
+    private WebServerService webServer;
 
     @Override
     public void onEnable() {
@@ -80,6 +82,11 @@ public final class PlayerInfoPlugin extends JavaPlugin {
             fightStats.setExecutor(new FightStatsCommand(fightTracker));
         }
 
+        if (getConfig().getBoolean("web.enabled", true)) {
+            webServer = new WebServerService(this, gui, fightTracker, leaderboards);
+            webServer.start();
+        }
+
         getLogger().info("PlayerInfo enabled on " + getServer().getName() + " " + getServer().getVersion());
     }
 
@@ -106,6 +113,10 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (webServer != null) {
+            webServer.stop();
+            webServer = null;
+        }
         if (leaderboards != null) {
             leaderboards.stop();
         }

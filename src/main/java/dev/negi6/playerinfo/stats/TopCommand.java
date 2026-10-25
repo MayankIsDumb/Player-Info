@@ -52,16 +52,7 @@ public final class TopCommand implements CommandExecutor, TabCompleter {
     }
 
     private LeaderboardService.Metric parse(String name) {
-        return switch (name.toLowerCase(Locale.ROOT)) {
-            case "playtime", "time" -> LeaderboardService.Metric.PLAYTIME;
-            case "blocks", "mined" -> LeaderboardService.Metric.BLOCKS;
-            case "mobs" -> LeaderboardService.Metric.MOBS;
-            case "distance" -> LeaderboardService.Metric.DISTANCE;
-            case "deaths" -> LeaderboardService.Metric.DEATHS;
-            case "kills" -> LeaderboardService.Metric.KILLS;
-            case "kd" -> LeaderboardService.Metric.KD;
-            default -> null;
-        };
+        return LeaderboardService.parseMetric(name);
     }
 
     @Override

@@ -14,7 +14,7 @@ import org.bukkit.Statistic;
  * EntityType. {@code parent} is the screen the back button returns to;
  * {@code jsonGroup} is the vanilla stats-file group for offline players.
  */
-enum StatsList {
+public enum StatsList {
 
     MINED(Statistic.MINE_BLOCK, Kind.MATERIAL, Material.GRASS_BLOCK,
             "Blocks Mined", StatsMenuHolder.Screen.ROOT, "mined"),
