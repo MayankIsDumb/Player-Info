@@ -54,6 +54,8 @@ public final class StatsGui {
     static final int SLOT_LOGIN = 30;
     static final int SLOT_KILLS = 32;
     static final int SLOT_DEATHS = 34;
+    static final int SLOT_DEATH_LOG = 21;
+    static final int SLOT_ADVANCEMENTS = 23;
 
     private static final DateTimeFormatter DATE_TIME =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
@@ -137,10 +139,12 @@ public final class StatsGui {
 
     private final PlayerTracker tracker;
     private final FightTracker fightTracker;
+    private final DeathStore deathStore;
 
-    public StatsGui(PlayerTracker tracker, FightTracker fightTracker) {
+    public StatsGui(PlayerTracker tracker, FightTracker fightTracker, DeathStore deathStore) {
         this.tracker = tracker;
         this.fightTracker = fightTracker;
+        this.deathStore = deathStore;
     }
 
     public void open(Player viewer, StatsSource target, StatsMenuHolder.Screen screen, StatsList list, int page) {
@@ -165,6 +169,8 @@ public final class StatsGui {
             case LOGIN_INFO -> openLogin(viewer, target);
             case KILLER_PLAYERS -> openPlayerFights(viewer, target, list, page);
             case FIGHT_RECORDS -> openFightRecords(viewer, target, other, list, page);
+            case DEATH_LOG -> openDeathLog(viewer, target, page);
+            case ADVANCEMENTS -> openAdvancements(viewer, target, page);
         }
     }
 
@@ -177,6 +183,10 @@ public final class StatsGui {
         inv.setItem(SLOT_ITEMS, button(Material.CRAFTING_TABLE, "Items",
                 "Crafted, used, broken, picked up, dropped, enchanted"));
         inv.setItem(SLOT_MOBS, button(Material.ZOMBIE_HEAD, "Mobs", "Mobs killed and killed by"));
+        inv.setItem(SLOT_DEATH_LOG, button(Material.BONE, "Death Log", "Recent deaths with coordinates"));
+        AdvancementSource.Summary advancements = AdvancementSource.of(target);
+        inv.setItem(SLOT_ADVANCEMENTS, button(Material.NETHER_STAR, "Advancements",
+                advancements.done() + " / " + advancements.total() + " completed"));
         inv.setItem(SLOT_COMBAT, button(Material.DIAMOND_AXE, "Combat",
                 "Damage dealt, taken, absorbed, critical hits"));
         inv.setItem(SLOT_LOGIN, button(Material.OAK_SIGN, "Login Info",
@@ -383,6 +393,45 @@ public final class StatsGui {
         return hinted;
     }
 
+    private void openDeathLog(Player viewer, StatsSource target, int page) {
+        List<DeathStore.DeathRecord> records = deathStore.deaths(target.uuid());
+        List<Entry> entries = new ArrayList<>();
+        List<Object> keys = new ArrayList<>();
+        for (int i = 0; i < records.size(); i++) {
+            DeathStore.DeathRecord record = records.get(i);
+            keys.add(i);
+            entries.add(new Entry("Death — " + dateTime(record.time()), record.time(),
+                    item(Material.BONE, Component.text("Death — " + dateTime(record.time()),
+                            NamedTextColor.AQUA), List.of(
+                            Component.text(record.cause(), NamedTextColor.GRAY),
+                            Component.text(record.world() + " — "
+                                    + record.x() + " " + record.y() + " " + record.z(),
+                                    NamedTextColor.GOLD),
+                            Component.text("Click to copy coordinates", NamedTextColor.DARK_GRAY)))));
+        }
+        openListPage(viewer, target, entries, keys, StatsMenuHolder.Screen.DEATH_LOG,
+                null, null, "Death Log", page);
+    }
+
+    private void openAdvancements(Player viewer, StatsSource target, int page) {
+        AdvancementSource.Summary summary = AdvancementSource.of(target);
+        List<Entry> entries = new ArrayList<>();
+        entries.add(new Entry("Advancements", summary.done(),
+                item(Material.NETHER_STAR, Component.text("Advancements", NamedTextColor.AQUA), List.of(
+                        Component.text(summary.done() + " / " + summary.total() + " completed",
+                                NamedTextColor.GOLD),
+                        Component.text("Remaining shown below", NamedTextColor.DARK_GRAY)))));
+        for (String key : summary.remainingKeys()) {
+            String path = key.contains(":") ? key.substring(key.indexOf(':') + 1) : key;
+            String name = path.contains("/") ? path.substring(path.lastIndexOf('/') + 1) : path;
+            entries.add(new Entry(pretty(name), 0,
+                    item(Material.BOOK, Component.text(pretty(name), NamedTextColor.WHITE), List.of(
+                            Component.text("Not completed yet", NamedTextColor.DARK_GRAY)))));
+        }
+        openListPage(viewer, target, entries, null, StatsMenuHolder.Screen.ADVANCEMENTS,
+                null, null, "Advancements", page);
+    }
+
     private void openPlayerFights(Player viewer, StatsSource target, StatsList originList, int page) {
         Map<UUID, Integer> counts = new HashMap<>();
         for (FightTracker.Fight fight : fightTracker.fightsInvolving(target.uuid())) {
@@ -558,6 +607,10 @@ public final class StatsGui {
 
     static String fmt(long value) {
         return String.format(Locale.ROOT, "%,d", value);
+    }
+
+    static String dateTime(long epochMillis) {
+        return DATE_TIME.format(Instant.ofEpochMilli(epochMillis));
     }
 
     static String ticks(long tickCount) {

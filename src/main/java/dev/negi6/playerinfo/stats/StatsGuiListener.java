@@ -25,11 +25,13 @@ public final class StatsGuiListener implements Listener {
     private final PlayerInfoPlugin plugin;
     private final StatsGui gui;
     private final FightTracker tracker;
+    private final DeathStore deathStore;
 
-    public StatsGuiListener(PlayerInfoPlugin plugin, StatsGui gui, FightTracker tracker) {
+    public StatsGuiListener(PlayerInfoPlugin plugin, StatsGui gui, FightTracker tracker, DeathStore deathStore) {
         this.plugin = plugin;
         this.gui = gui;
         this.tracker = tracker;
+        this.deathStore = deathStore;
     }
 
     @EventHandler
@@ -80,10 +82,30 @@ public final class StatsGuiListener implements Listener {
                             StatsMenuHolder.Screen.KILLER_PLAYERS, null, 0, null);
                     case StatsGui.SLOT_DEATHS -> gui.open(viewer, target,
                             StatsMenuHolder.Screen.LIST, StatsList.KILLED_BY, 0);
+                    case StatsGui.SLOT_DEATH_LOG -> gui.open(viewer, target,
+                            StatsMenuHolder.Screen.DEATH_LOG, null, 0);
+                    case StatsGui.SLOT_ADVANCEMENTS -> gui.open(viewer, target,
+                            StatsMenuHolder.Screen.ADVANCEMENTS, null, 0);
                     default -> { }
                 }
             }
             case GENERAL, COMBAT, LOGIN_INFO -> {
+                if (slot == StatsGui.SLOT_BACK) {
+                    gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);
+                }
+            }
+            case DEATH_LOG -> {
+                if (slot == StatsGui.SLOT_BACK) {
+                    gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);
+                } else if (slot < 45 && slot < holder.entryKeys().size()
+                        && holder.entryKeys().get(slot) instanceof Integer index) {
+                    DeathStore.DeathRecord record = deathStore.death(target.uuid(), index);
+                    if (record != null) {
+                        viewer.sendMessage(deathStore.chatMessage(record));
+                    }
+                }
+            }
+            case ADVANCEMENTS -> {
                 if (slot == StatsGui.SLOT_BACK) {
                     gui.open(viewer, target, StatsMenuHolder.Screen.ROOT, null, 0);
                 }

@@ -28,6 +28,8 @@ plugin is the backend, using data it already tracks.
 | GET | `/api/fights?offset=0&limit=25` | `FightTracker` (existing) | recent fights, newest first |
 | GET | `/api/fights/{id}` | `FightTracker` | one fight: winner, loser, all 9 stats per side, timestamp |
 | GET | `/api/leaderboard/{stat}` | leaderboard cache | top N — `kills`, `deaths`, `kd`, `playtime`, `damage`, `crits`, `combo`, `mined`, `mobkills` |
+| GET | `/api/deaths/{name}` | `DeathStore` | recent deaths — world, coordinates, cause, time |
+| GET | `/api/advancements/{name}` | `AdvancementSource` | done/total + list of remaining advancements |
 | GET | `/api/meta` | plugin | version, uptime, enabled features (for the site footer) |
 
 All responses are read-only JSON. Nothing in v1 accepts writes.
@@ -100,6 +102,26 @@ autocomplete.
 **Phase 3 (later ideas, not in scope yet):** Tier Rating (TR) system —
 ELO-style rating updated per fight, shown on profiles and its own leaderboard;
 Discord webhook for new fights; kills/deaths graphs.
+
+## SMP roadmap (approved direction)
+
+For an SMP audience the focus shifts from competition to progression,
+community and memories. PvP fight tracking stays exactly as is (config
+toggle) — no new PvP features.
+
+| Order | Feature | Status |
+|---|---|---|
+| 1 | **Death log** — `/deaths` style page in GUI, coordinates + cause + time, click-to-copy in chat; persisted to `deaths.json`; website endpoint + page | ✅ in-game done |
+| 2 | **Advancement progress** — "87/122 completed" with remaining list in GUI (online via API, offline via advancements file); website endpoint + page | ✅ in-game done |
+| 3 | **Stats-scan service** → all-time leaderboards (playtime, blocks, mobs, distance, deaths) + server-wide totals; cached async scan of every stats file; website endpoints | next |
+| 4 | **Profile personalization** — bio, base coordinates, favorite activity in `playerdata.json`, shown in GUI + website | next |
+| 5 | **`/stats compare <player>`** — side-by-side comparison screen | next |
+| 6 | **Discord webhook** — advancements, milestones, deaths (config-gated URL) | later |
+| 7 | **AFK detection** — `Player#getIdleDuration()` badge; keeps leaderboards honest | later |
+| 8 | **Playtime ranks/rewards** — needs AFK-aware playtime accumulation | later |
+| 9 | **PlaceholderAPI + messages.yml** — adoption polish | later |
+| — | Weekly/monthly leaderboards — deferred: vanilla keeps lifetime totals only, needs a snapshot-and-delta system | deferred |
+| — | TR / Elo rating — dropped for SMP (was a PvP-competition feature) | dropped |
 
 ## Files this adds/changes
 
