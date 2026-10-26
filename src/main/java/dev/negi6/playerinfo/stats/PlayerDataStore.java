@@ -21,8 +21,7 @@ import org.bukkit.Bukkit;
 /**
  * Per-player profile personalization (bio, favorite activity, base
  * coordinates) set with /playerinfo setbio|setfav|setbase, persisted to
- * {@code plugins/PlayerInfo/playerdata.json} and shown in the GUI and on the
- * website.
+ * {@code plugins/PlayerInfo/playerdata.json} and shown in the GUI.
  */
 public final class PlayerDataStore {
 

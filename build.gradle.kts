@@ -30,6 +30,10 @@ dependencies {
     compileOnly("com.google.code.gson:gson:2.11.0")
     // Optional integration: PlaceholderAPI placeholders (%playerinfo_*%).
     compileOnly("me.clip:placeholderapi:2.11.6")
+
+    testImplementation("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks {
@@ -45,6 +49,10 @@ tasks {
         filesMatching("plugin.yml") {
             expand(props)
         }
+    }
+
+    test {
+        useJUnitPlatform()
     }
 
     runServer {

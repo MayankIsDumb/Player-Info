@@ -66,10 +66,9 @@ public final class LeaderboardService {
     private static final int SLOTS = SLOT_KILLS + 1;
 
     private final JavaPlugin plugin;
-    private final long refreshMs;
-    private final OptOutStore optOut;
+    private long refreshMs;
     private final File snapshotsFile;
-    private final List<Snapshot> snapshots = new ArrayList<>();
+    private final List<Snapshot> snapshots = new java.util.concurrent.CopyOnWriteArrayList<>();
     private volatile Map<UUID, long[]> aggregates = Map.of();
     private volatile Map<UUID, String> names = Map.of();
     private volatile long lastScan;
@@ -78,33 +77,14 @@ public final class LeaderboardService {
     /** A point-in-time copy of every player's aggregate values. */
     public record Snapshot(long time, Map<UUID, long[]> values) {}
 
-    public LeaderboardService(JavaPlugin plugin, long refreshMinutes, OptOutStore optOut, File dataFolder) {
+    public LeaderboardService(JavaPlugin plugin, long refreshMinutes, File dataFolder) {
         this.plugin = plugin;
         this.refreshMs = Math.max(1, refreshMinutes) * 60_000L;
-        this.optOut = optOut;
         this.snapshotsFile = new File(dataFolder, "snapshots.json");
         loadSnapshots();
     }
 
     public record SearchHit(UUID uuid, String name) {}
-
-    /** Player names starting with the query (for website autocomplete). */
-    public List<SearchHit> search(String query, int limit) {
-        String q = query.toLowerCase(java.util.Locale.ROOT);
-        List<SearchHit> out = new ArrayList<>();
-        for (var entry : names.entrySet()) {
-            if (optOut.isHidden(entry.getKey())) {
-                continue;
-            }
-            if (entry.getValue().toLowerCase(java.util.Locale.ROOT).startsWith(q)) {
-                out.add(new SearchHit(entry.getKey(), entry.getValue()));
-                if (out.size() >= limit) {
-                    break;
-                }
-            }
-        }
-        return out;
-    }
 
     public void start() {
         scan();
@@ -119,6 +99,13 @@ public final class LeaderboardService {
         }
     }
 
+    /** Applies a new refresh interval and restarts the scan task. */
+    public void reload(long refreshMinutes) {
+        stop();
+        this.refreshMs = Math.max(1, refreshMinutes) * 60_000L;
+        start();
+    }
+
     public boolean isReady() {
         return lastScan > 0;
     }
@@ -131,13 +118,15 @@ public final class LeaderboardService {
         return aggregates.size();
     }
 
+    /** Cached display name for a scanned player, or null if unknown. */
+    public String nameOf(UUID uuid) {
+        return names.get(uuid);
+    }
+
     public List<Entry> top(Metric metric, int limit) {
         List<Entry> out = new ArrayList<>();
         if (metric == Metric.KD) {
             for (var e : aggregates.entrySet()) {
-                if (optOut.isHidden(e.getKey())) {
-                    continue;
-                }
                 long kills = e.getValue()[SLOT_KILLS];
                 long deaths = e.getValue()[SLOT_DEATHS];
                 if (kills > 0) {
@@ -146,9 +135,6 @@ public final class LeaderboardService {
             }
         } else {
             for (var e : aggregates.entrySet()) {
-                if (optOut.isHidden(e.getKey())) {
-                    continue;
-                }
                 long value = e.getValue()[metric.ordinal()];
                 if (value > 0) {
                     out.add(new Entry(e.getKey(), value));
@@ -181,9 +167,6 @@ public final class LeaderboardService {
         }
         List<Entry> out = new ArrayList<>();
         for (var e : aggregates.entrySet()) {
-            if (optOut.isHidden(e.getKey())) {
-                continue;
-            }
             long now = e.getValue()[metric.ordinal()];
             long[] baseValues = base.values().get(e.getKey());
             long before = baseValues == null ? 0 : baseValues[metric.ordinal()];
@@ -194,12 +177,16 @@ public final class LeaderboardService {
         }
         out.sort(Comparator.comparingLong(Entry::value).reversed());
         return new ArrayList<>(out.subList(0, Math.min(limit, out.size())));
-    }    private void recordSnapshot(Map<UUID, long[]> parsed) {
+    }
+
+    private void recordSnapshot(Map<UUID, long[]> parsed) {
         long now = System.currentTimeMillis();
         snapshots.add(new Snapshot(now, parsed));
         long pruneBefore = now - 8L * 24 * 60 * 60 * 1000;
         snapshots.removeIf(snapshot -> snapshot.time() < pruneBefore);
-        saveSnapshots();
+        // Serializing every snapshot can be heavy; keep it off the game thread.
+        List<Snapshot> copy = List.copyOf(snapshots);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveSnapshots(copy));
     }
 
     private void loadSnapshots() {
@@ -228,10 +215,10 @@ public final class LeaderboardService {
         }
     }
 
-    private void saveSnapshots() {
+    private void saveSnapshots(List<Snapshot> toSave) {
         try {
             JsonArray array = new JsonArray();
-            for (Snapshot snapshot : snapshots) {
+            for (Snapshot snapshot : toSave) {
                 JsonObject o = new JsonObject();
                 o.addProperty("time", snapshot.time());
                 JsonObject values = new JsonObject();
@@ -261,11 +248,10 @@ public final class LeaderboardService {
     }
 
     /** Server-wide total for one metric (KD unsupported). */
-    public long total(Metric metric) {        long sum = 0;
+    public long total(Metric metric) {
+        long sum = 0;
         for (var e : aggregates.entrySet()) {
-            if (!optOut.isHidden(e.getKey())) {
-                sum += e.getValue()[metric.ordinal()];
-            }
+            sum += e.getValue()[metric.ordinal()];
         }
         return sum;
     }
@@ -273,14 +259,19 @@ public final class LeaderboardService {
     private void scan() {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Map<UUID, long[]> parsed = scanFiles();
-            Map<UUID, String> parsedNames = new HashMap<>();
-            for (UUID uuid : parsed.keySet()) {
-                String name = Bukkit.getOfflinePlayer(uuid).getName();
-                if (name != null) {
-                    parsedNames.put(uuid, name);
-                }
-            }
+            // Bukkit player lookups must stay on the main thread.
             Bukkit.getScheduler().runTask(plugin, () -> {
+                Map<UUID, String> parsedNames = new HashMap<>();
+                Map<UUID, String> previousNames = names;
+                for (UUID uuid : parsed.keySet()) {
+                    String name = previousNames.get(uuid);
+                    if (name == null) {
+                        name = Bukkit.getOfflinePlayer(uuid).getName();
+                    }
+                    if (name != null) {
+                        parsedNames.put(uuid, name);
+                    }
+                }
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     parsed.put(player.getUniqueId(), liveValues(player));
                     parsedNames.put(player.getUniqueId(), player.getName());

@@ -9,11 +9,11 @@ package dev.negi6.playerinfo;
 import dev.negi6.playerinfo.discord.DiscordService;
 import dev.negi6.playerinfo.hooks.PlayerInfoExpansion;
 import dev.negi6.playerinfo.messages.Messages;
+import dev.negi6.playerinfo.stats.AdvancementSource;
 import dev.negi6.playerinfo.stats.DeathStore;
 import dev.negi6.playerinfo.stats.FightStatsCommand;
 import dev.negi6.playerinfo.stats.FightTracker;
 import dev.negi6.playerinfo.stats.LeaderboardService;
-import dev.negi6.playerinfo.stats.OptOutStore;
 import dev.negi6.playerinfo.stats.PlayerDataStore;
 import dev.negi6.playerinfo.stats.PlaytimeRanks;
 import dev.negi6.playerinfo.stats.PlayerTracker;
@@ -22,7 +22,6 @@ import dev.negi6.playerinfo.stats.StatsCommand;
 import dev.negi6.playerinfo.stats.StatsGui;
 import dev.negi6.playerinfo.stats.StatsGuiListener;
 import dev.negi6.playerinfo.stats.TopCommand;
-import dev.negi6.playerinfo.web.WebServerService;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -33,9 +32,10 @@ public final class PlayerInfoPlugin extends JavaPlugin {
     private FightTracker fightTracker;
     private DeathStore deathStore;
     private LeaderboardService leaderboards;
-    private WebServerService webServer;
     private DiscordService discord;
     private PlaytimeRanks playtimeRanks;
+    private PlayerDataStore playerData;
+    private StatsGui gui;
     private Messages messages;
 
     public Messages messages() {
@@ -47,16 +47,16 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         saveDefaultConfig();
 
         // Capture the world folder on the main thread — background readers
-        // (leaderboard scans, website) must not call Bukkit.getWorlds().
+        // (leaderboard scans) must not call Bukkit.getWorlds().
         ServerData.init(getServer().getWorldContainer().toPath()
                 .resolve(getServer().getWorlds().get(0).getName()));
+        AdvancementSource.init();
 
         messages = new Messages(this);
         PluginManager plugins = getServer().getPluginManager();
         applyJoinListener();
 
-        OptOutStore optOut = new OptOutStore(getDataFolder());
-        PlayerDataStore playerData = new PlayerDataStore(getDataFolder());
+        playerData = new PlayerDataStore(getDataFolder());
         playtimeRanks = new PlaytimeRanks(this, getDataFolder());
         playtimeRanks.start();
 
@@ -89,10 +89,10 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         }
 
         leaderboards = new LeaderboardService(this,
-                getConfig().getLong("leaderboard-refresh-minutes", 5), optOut, getDataFolder());
+                getConfig().getLong("leaderboard-refresh-minutes", 5), getDataFolder());
         leaderboards.start();
 
-        StatsGui gui = new StatsGui(tracker, fightTracker, deathStore, leaderboards, playerData);
+        gui = new StatsGui(tracker, fightTracker, deathStore, leaderboards, playerData);
         plugins.registerEvents(new StatsGuiListener(this, gui, fightTracker, deathStore), this);
 
         PluginCommand top = getCommand("top");
@@ -104,7 +104,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
         PluginCommand stats = getCommand("stats");
         if (stats != null) {
-            StatsCommand statsHandler = new StatsCommand(gui, optOut, playerData, messages);
+            StatsCommand statsHandler = new StatsCommand(gui, playerData, messages);
             stats.setExecutor(statsHandler);
             stats.setTabCompleter(statsHandler);
         }
@@ -119,12 +119,6 @@ public final class PlayerInfoPlugin extends JavaPlugin {
             getLogger().info("PlaceholderAPI expansion registered.");
         }
 
-        if (getConfig().getBoolean("web.enabled", true)) {
-            webServer = new WebServerService(this, gui, fightTracker, leaderboards,
-                    optOut, playerData, playtimeRanks);
-            webServer.start();
-        }
-
         getLogger().info("PlayerInfo enabled on " + getServer().getName() + " " + getServer().getVersion());
     }
 
@@ -137,8 +131,9 @@ public final class PlayerInfoPlugin extends JavaPlugin {
                 getConfig().getBoolean("pvp-fight-tracking", true),
                 getConfig().getLong("fight-idle-timeout-seconds", 30) * 1000L,
                 getConfig().getInt("keep-fight-summaries", 50));
-        discord.applySettings();
-        playtimeRanks.applySettings();
+        discord.reload();
+        playtimeRanks.reload();
+        leaderboards.reload(getConfig().getLong("leaderboard-refresh-minutes", 5));
     }
 
     private void applyJoinListener() {
@@ -154,10 +149,6 @@ public final class PlayerInfoPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (webServer != null) {
-            webServer.stop();
-            webServer = null;
-        }
         if (leaderboards != null) {
             leaderboards.stop();
         }

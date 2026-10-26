@@ -30,7 +30,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Player;
@@ -71,6 +70,7 @@ public final class FightTracker implements Listener {
     public static final class Fight {
         private final UUID a;
         private final UUID b;
+        private final Map<UUID, String> names = new HashMap<>();
         private UUID winner;
         private UUID loser;
         private final Map<UUID, Side> sides = new HashMap<>();
@@ -112,8 +112,7 @@ public final class FightTracker implements Listener {
         }
 
         public String name(UUID player) {
-            OfflinePlayer offline = Bukkit.getOfflinePlayer(player);
-            String name = offline.getName();
+            String name = names.get(player);
             return name != null ? name : player.toString().substring(0, 8);
         }
     }
@@ -154,6 +153,8 @@ public final class FightTracker implements Listener {
                 .findFirst()
                 .orElseGet(() -> {
                     Fight created = new Fight(attacker.getUniqueId(), victim.getUniqueId());
+                    created.names.put(attacker.getUniqueId(), attacker.getName());
+                    created.names.put(victim.getUniqueId(), victim.getName());
                     active.add(created);
                     return created;
                 });
@@ -220,6 +221,8 @@ public final class FightTracker implements Listener {
         }
         fight.winner = killer.getUniqueId();
         fight.loser = victim.getUniqueId();
+        fight.names.put(killer.getUniqueId(), killer.getName());
+        fight.names.put(victim.getUniqueId(), victim.getName());
         fight.id = nextId.incrementAndGet();
         finished.put(fight.id, fight);
         while (finished.size() > keptSummaries) {
@@ -324,6 +327,11 @@ public final class FightTracker implements Listener {
                 o.addProperty("winner", fight.winner.toString());
                 o.addProperty("loser", fight.loser.toString());
                 o.addProperty("startedAt", fight.startedAt);
+                JsonObject names = new JsonObject();
+                for (Map.Entry<UUID, String> nameEntry : fight.names.entrySet()) {
+                    names.addProperty(nameEntry.getKey().toString(), nameEntry.getValue());
+                }
+                o.add("names", names);
                 JsonObject sides = new JsonObject();
                 for (Map.Entry<UUID, Side> sideEntry : fight.sides.entrySet()) {
                     Side side = sideEntry.getValue();
@@ -367,6 +375,21 @@ public final class FightTracker implements Listener {
                 fight.id = o.get("id").getAsInt();
                 fight.startedAt = o.get("startedAt").getAsLong();
                 fight.lastHit = fight.startedAt;
+                if (o.has("names")) {
+                    for (var nameEntry : o.getAsJsonObject("names").entrySet()) {
+                        fight.names.put(UUID.fromString(nameEntry.getKey()),
+                                nameEntry.getValue().getAsString());
+                    }
+                }
+                // Old files have no names; resolve them once on the main thread.
+                for (UUID uuid : List.of(fight.winner, fight.loser)) {
+                    if (!fight.names.containsKey(uuid)) {
+                        String name = Bukkit.getOfflinePlayer(uuid).getName();
+                        if (name != null) {
+                            fight.names.put(uuid, name);
+                        }
+                    }
+                }
                 JsonObject sides = o.getAsJsonObject("sides");
                 for (var sideEntry : sides.entrySet()) {
                     Side side = fight.side(UUID.fromString(sideEntry.getKey()));

@@ -64,7 +64,7 @@ public final class PlayerInfoExpansion extends PlaceholderExpansion {
         UUID uuid = player == null ? null : player.getUniqueId();
         Long aggregate = uuid == null ? null : leaderboards.aggregateOf(uuid,
                 switch (key) {
-                    case "playtime" -> LeaderboardService.Metric.PLAYTIME;
+                    case "playtime", "rank" -> LeaderboardService.Metric.PLAYTIME;
                     case "blocks" -> LeaderboardService.Metric.BLOCKS;
                     case "mobs" -> LeaderboardService.Metric.MOBS;
                     case "distance" -> LeaderboardService.Metric.DISTANCE;

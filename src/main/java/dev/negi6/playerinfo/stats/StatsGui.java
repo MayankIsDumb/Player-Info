@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -70,18 +71,23 @@ public final class StatsGui {
 
     public record Entry(String name, long value, ItemStack icon) {}
 
-    /** One formatted stat row for the website API. */
-    public record WebStat(String label, String formatted) {}
-
-    public static List<WebStat> generalWebStats(StatsSource target) {
-        List<WebStat> out = new ArrayList<>();
-        for (GeneralStat gs : GENERAL_STATS) {
-            out.add(new WebStat(gs.label(), valueText(gs, target.untyped(gs.stat()))));
-        }
-        return out;
-    }
-
     private static final List<GeneralStat> GENERAL_STATS = buildGeneralStats();
+
+    private static final Material[] BLOCK_MATERIALS = Arrays.stream(Material.values())
+            .filter(material -> !material.isAir() && material.isBlock())
+            .toArray(Material[]::new);
+    private static final Material[] ITEM_MATERIALS = Arrays.stream(Material.values())
+            .filter(material -> !material.isAir() && material.isItem())
+            .toArray(Material[]::new);
+    private static final List<EntityType> ENTITY_TYPES;
+
+    static {
+        List<EntityType> types = new ArrayList<>();
+        for (EntityType type : Registry.ENTITY_TYPE) {
+            types.add(type);
+        }
+        ENTITY_TYPES = List.copyOf(types);
+    }
 
     private static List<GeneralStat> buildGeneralStats() {
         List<GeneralStat> stats = new ArrayList<>(List.of(
@@ -350,21 +356,27 @@ public final class StatsGui {
     }
 
     public List<Entry> listEntries(StatsSource target, StatsList list, List<Object> keys) {
+        return collectEntries(target, list, keys, true, Integer.MAX_VALUE);
+    }
+
+    private List<Entry> collectEntries(StatsSource target, StatsList list, List<Object> keys,
+                                       boolean withIcons, int limit) {
         List<Entry> entries = new ArrayList<>();
         switch (list.kind) {
             case MATERIAL -> {
-                boolean blocksOnly = list.statistic == Statistic.MINE_BLOCK;
-                for (Material material : Material.values()) {
-                    if (material.isAir() || (blocksOnly ? !material.isBlock() : !material.isItem())) {
-                        continue;
-                    }
+                Material[] candidates = list.statistic == Statistic.MINE_BLOCK
+                        ? BLOCK_MATERIALS : ITEM_MATERIALS;
+                for (Material material : candidates) {
                     try {
                         long value = target.material(list, material);
                         if (value <= 0) {
                             continue;
                         }
-                        ItemStack icon = statIcon(material, pretty(material.name()), value);
-                        keys.add(material);
+                        if (keys != null) {
+                            keys.add(material);
+                        }
+                        ItemStack icon = withIcons
+                                ? statIcon(material, pretty(material.name()), value) : null;
                         entries.add(new Entry(pretty(material.name()), value, icon));
                     } catch (Exception brokenEntry) {
                         // A single bad material must never kill the whole page.
@@ -372,17 +384,22 @@ public final class StatsGui {
                 }
             }
             case ENTITY -> {
-                for (EntityType type : Registry.ENTITY_TYPE) {
+                for (EntityType type : ENTITY_TYPES) {
                     try {
                         long value = target.entity(list, type);
                         if (value <= 0) {
                             continue;
                         }
-                        ItemStack icon = statIcon(entityIcon(type), pretty(type.name()), value);
-                        if (type == EntityType.PLAYER && isPlayerFightList(list)) {
-                            icon = withFightHint(icon);
+                        if (keys != null) {
+                            keys.add(type);
                         }
-                        keys.add(type);
+                        ItemStack icon = null;
+                        if (withIcons) {
+                            icon = statIcon(entityIcon(type), pretty(type.name()), value);
+                            if (type == EntityType.PLAYER && isPlayerFightList(list)) {
+                                icon = withFightHint(icon);
+                            }
+                        }
                         entries.add(new Entry(pretty(type.name()), value, icon));
                     } catch (Exception brokenEntry) {
                         // A single bad entity must never kill the whole page.
@@ -392,7 +409,7 @@ public final class StatsGui {
         }
         entries.sort(Comparator.comparingLong(Entry::value).reversed()
                 .thenComparing(entry -> entry.name().toLowerCase(Locale.ROOT)));
-        return entries;
+        return new ArrayList<>(entries.subList(0, Math.min(limit, entries.size())));
     }
 
     private static boolean isPlayerFightList(StatsList list) {

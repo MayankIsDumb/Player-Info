@@ -34,6 +34,25 @@ public final class AdvancementSource {
 
     public record Summary(int done, int total, List<String> remainingKeys) {}
 
+    /** Advancement handles, cached on the main thread during plugin enable. */
+    private static volatile List<Advancement> advancements = List.of();
+
+    /**
+     * Caches the server's advancement list. Must be called from the main
+     * thread; the cached copy is then safe to read from web threads.
+     */
+    public static void init() {
+        List<Advancement> list = new ArrayList<>();
+        Iterator<Advancement> iterator = Bukkit.advancementIterator();
+        while (iterator.hasNext()) {
+            Advancement advancement = iterator.next();
+            if (!advancement.getKey().toString().contains("/recipes/")) {
+                list.add(advancement);
+            }
+        }
+        advancements = List.copyOf(list);
+    }
+
     public static Summary of(StatsSource target) {
         Set<String> doneKeys = target.isOnline()
                 ? doneFromApi(target.onlinePlayer())
@@ -42,13 +61,8 @@ public final class AdvancementSource {
         int total = 0;
         int done = 0;
         List<String> remaining = new ArrayList<>();
-        Iterator<Advancement> advancements = Bukkit.advancementIterator();
-        while (advancements.hasNext()) {
-            Advancement advancement = advancements.next();
+        for (Advancement advancement : advancements) {
             String key = advancement.getKey().toString();
-            if (key.contains("/recipes/")) {
-                continue;
-            }
             total++;
             if (doneKeys.contains(key)) {
                 done++;
@@ -61,9 +75,7 @@ public final class AdvancementSource {
 
     private static Set<String> doneFromApi(Player player) {
         Set<String> done = new HashSet<>();
-        Iterator<Advancement> advancements = Bukkit.advancementIterator();
-        while (advancements.hasNext()) {
-            Advancement advancement = advancements.next();
+        for (Advancement advancement : advancements) {
             if (player.getAdvancementProgress(advancement).isDone()) {
                 done.add(advancement.getKey().toString());
             }

@@ -23,13 +23,11 @@ import org.bukkit.entity.Player;
 public final class StatsCommand implements CommandExecutor, TabCompleter {
 
     private final StatsGui gui;
-    private final OptOutStore optOut;
     private final PlayerDataStore playerData;
     private final Messages messages;
 
-    public StatsCommand(StatsGui gui, OptOutStore optOut, PlayerDataStore playerData, Messages messages) {
+    public StatsCommand(StatsGui gui, PlayerDataStore playerData, Messages messages) {
         this.gui = gui;
-        this.optOut = optOut;
         this.playerData = playerData;
         this.messages = messages;
     }
@@ -42,11 +40,6 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length >= 1) {
             switch (args[0].toLowerCase(Locale.ROOT)) {
-                case "hide" -> {
-                    boolean nowHidden = optOut.toggle(viewer.getUniqueId());
-                    viewer.sendMessage(messages.chat(nowHidden ? "stats.hidden" : "stats.visible"));
-                    return true;
-                }
                 case "setbio" -> {
                     String bio = join(args, 100);
                     playerData.set(viewer.getUniqueId(), PlayerDataStore.BIO, bio);
@@ -137,7 +130,7 @@ public final class StatsCommand implements CommandExecutor, TabCompleter {
         }
         String prefix = args[0].toLowerCase(Locale.ROOT);
         List<String> out = new ArrayList<>();
-        for (String sub : List.of("hide", "compare", "setbio", "setfav", "setbase")) {
+        for (String sub : List.of("compare", "setbio", "setfav", "setbase")) {
             if (sub.startsWith(prefix)) {
                 out.add(sub);
             }

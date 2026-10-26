@@ -70,6 +70,17 @@ public final class PlaytimeRanks {
 
     public void start() {
         applySettings();
+        load();
+        schedule();
+    }
+
+    /** Re-applies config and restarts the timer (used by /playerinfo reload). */
+    public void reload() {
+        stop();
+        start();
+    }
+
+    private void schedule() {
         if (!enabled || ranks.isEmpty()) {
             return;
         }

@@ -22,7 +22,7 @@ Spigot is not supported (Paper-only APIs). MIT licensed — © Mayank Negi
 | `/stats hide` | everyone | Opt in/out of the public website |
 | `/stats setbio <text>` / `setfav` / `setbase` | everyone | Personalize your profile |
 | `/fightstats <id>` | everyone | Opens a PvP fight summary |
-| `/top [category]` | everyone | Leaderboards: playtime, blocks, mobs, distance, deaths, kills, kd |
+| `/top [weekly] <category>` | everyone | Leaderboards: playtime, blocks, mobs, distance, deaths, kills, kd |
 
 ## The statistics GUI
 
@@ -54,8 +54,9 @@ off in the config.
 
 The plugin embeds a dashboard at **`http://<server-ip>:8080`** (configurable):
 home page with the server IP and live player list, searchable player profiles
-with skin avatars, a recent-fights feed, and leaderboards. Web traffic never
-touches the game loop and the API is read-only.
+with skin avatars, a recent-fights feed, and leaderboards with an all-time /
+weekly toggle. Players can opt out with `/stats hide`; public responses never
+contain IP addresses or UUIDs, and the API is read-only and rate-limited.
 
 ```yaml
 web:
@@ -71,10 +72,11 @@ web:
 
 ## Discord webhook
 
-Paste a webhook URL into the `discord:` section and the plugin posts PvP
-fights, completed challenges, playtime milestones and (optionally) deaths.
-Playtime milestones (10/50/100 hours by default) are also announced in-game.
-All toggles are in the config; `milestones-hours` controls the thresholds.
+Set `discord.enabled: true` and paste a webhook URL into the `discord:` section
+and the plugin posts PvP fights, completed challenges, playtime milestones and
+(optionally) deaths. Playtime milestones (10/50/100 hours by default) are also
+announced in-game, whether or not Discord is enabled. All toggles are in the
+config; `milestones-hours` controls the thresholds.
 
 ## PlaceholderAPI
 
@@ -87,7 +89,8 @@ available (values refresh with the leaderboard scan).
 
 - `config.yml` — feature toggles, fight tracking, ranks, milestones, web,
   Discord, AFK timeout (`afk-minutes`)
-- `messages.yml` — every chat message in MiniMessage format
+- `messages.yml` — every chat message in MiniMessage format; placeholders use
+  `<name>`-style tags (for example `<player>` and `<hours>`)
 - `fights.json` / `deaths.json` / `ranks.json` / `milestones.json` /
   `playerdata.json` / `hidden.json` — plugin data
 - Data files never contain IP addresses; the website never exposes them
@@ -95,8 +98,9 @@ available (values refresh with the leaderboard scan).
 ## Development
 
 ```bash
-./gradlew build        # build the jar into build/libs/
-./gradlew runServer    # boot a Paper 26.3 test server with the plugin loaded
+./gradlew build        # builds the jar and runs the message-rendering tests
+./gradlew test         # tests only
+./gradlew runServer    # boots a Paper 26.3 test server (requires Java 25)
 ```
 
 The jar is compiled against `paper-api 1.21.1` with Java 21 bytecode and

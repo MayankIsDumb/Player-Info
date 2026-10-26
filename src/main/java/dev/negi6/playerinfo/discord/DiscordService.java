@@ -8,6 +8,7 @@ package dev.negi6.playerinfo.discord;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import dev.negi6.playerinfo.PlayerInfoPlugin;
 import dev.negi6.playerinfo.stats.DeathStore;
 import dev.negi6.playerinfo.stats.FightTracker;
 import java.io.File;
@@ -20,21 +21,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Statistic;
 import io.papermc.paper.advancement.AdvancementDisplay;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
@@ -44,10 +40,11 @@ import org.bukkit.scheduler.BukkitTask;
  */
 public final class DiscordService implements Listener {
 
-    private final JavaPlugin plugin;
+    private final PlayerInfoPlugin plugin;
     private final HttpClient http = HttpClient.newHttpClient();
     private final MilestoneStore milestones;
     private String webhookUrl = "";
+    private boolean discordEnabled;
     private boolean postFights = true;
     private boolean postChallenges = true;
     private boolean postMilestones = true;
@@ -55,20 +52,19 @@ public final class DiscordService implements Listener {
     private List<Long> milestoneHours = List.of(10L, 50L, 100L);
     private BukkitTask milestoneTask;
 
-    public DiscordService(JavaPlugin plugin, File dataFolder) {
+    public DiscordService(PlayerInfoPlugin plugin, File dataFolder) {
         this.plugin = plugin;
         this.milestones = new MilestoneStore(dataFolder);
     }
 
     public void start() {
         applySettings();
-        if (!enabled()) {
-            return;
-        }
-        if (postChallenges) {
+        if (enabled() && postChallenges) {
             plugin.getServer().getPluginManager().registerEvents(this, plugin);
         }
-        if (postMilestones && !milestoneHours.isEmpty()) {
+        // In-game milestones are independent of the Discord webhook; the
+        // webhook post is gated separately inside postMilestone().
+        if (!milestoneHours.isEmpty()) {
             milestoneTask = Bukkit.getScheduler().runTaskTimer(plugin,
                     this::checkMilestones, 20L * 60, 20L * 60);
         }
@@ -81,8 +77,16 @@ public final class DiscordService implements Listener {
         }
     }
 
+    /** Re-reads config and re-registers listeners/tasks (used by reload). */
+    public void reload() {
+        stop();
+        HandlerList.unregisterAll(this);
+        start();
+    }
+
     public void applySettings() {
         ConfigurationSection discord = plugin.getConfig().getConfigurationSection("discord");
+        discordEnabled = discord != null && discord.getBoolean("enabled", false);
         webhookUrl = discord == null ? "" : discord.getString("webhook-url", "");
         postFights = discord == null || discord.getBoolean("post-fights", true);
         postChallenges = discord == null || discord.getBoolean("post-challenges", true);
@@ -98,7 +102,7 @@ public final class DiscordService implements Listener {
     }
 
     private boolean enabled() {
-        return webhookUrl != null && !webhookUrl.isEmpty();
+        return discordEnabled && webhookUrl != null && !webhookUrl.isEmpty();
     }
 
     public void postFight(FightTracker.Fight fight) {
@@ -163,8 +167,9 @@ public final class DiscordService implements Listener {
                 long required = hours * 72000L; // 20 ticks × 3600 s
                 if (ticks >= required && !milestones.announced(player.getUniqueId(), hours)) {
                     milestones.mark(player.getUniqueId(), hours);
-                    Bukkit.broadcast(Component.text("⭐ " + player.getName()
-                            + " just hit " + hours + " hours of playtime!", NamedTextColor.GOLD));
+                    Bukkit.broadcast(plugin.messages().raw("broadcast.milestone",
+                            "player", player.getName(),
+                            "hours", String.valueOf(hours)));
                     postMilestone(player, hours);
                 }
             }
@@ -181,17 +186,6 @@ public final class DiscordService implements Listener {
             return;
         }
         onChallenge(event.getPlayer(), display);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        Location loc = player.getLocation();
-        String cause = player.getLastDamageCause() == null ? "unknown"
-                : player.getLastDamageCause().getCause().name();
-        postDeath(player.getName(), new DeathStore.DeathRecord(System.currentTimeMillis(),
-                loc.getWorld() == null ? "unknown" : loc.getWorld().getName(),
-                loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), cause));
     }
 
     private void addField(JsonArray fields, String name, String value) {
