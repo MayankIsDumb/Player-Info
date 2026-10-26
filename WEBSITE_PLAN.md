@@ -111,17 +111,19 @@ toggle) — no new PvP features.
 
 | Order | Feature | Status |
 |---|---|---|
-| 1 | **Death log** — `/deaths` style page in GUI, coordinates + cause + time, click-to-copy in chat; persisted to `deaths.json`; website endpoint + page | ✅ in-game done |
-| 2 | **Advancement progress** — "87/122 completed" with remaining list in GUI (online via API, offline via advancements file); website endpoint + page | ✅ in-game done |
-| 3 | **Stats-scan service** → all-time leaderboards (playtime, blocks, mobs, distance, deaths) + server-wide totals; cached async scan of every stats file; website endpoints | next |
-| 4 | **Profile personalization** — bio, base coordinates, favorite activity in `playerdata.json`, shown in GUI + website | next |
-| 5 | **`/stats compare <player>`** — side-by-side comparison screen | next |
-| 6 | **Discord webhook** — advancements, milestones, deaths (config-gated URL) | later |
-| 7 | **AFK detection** — `Player#getIdleDuration()` badge; keeps leaderboards honest | later |
-| 8 | **Playtime ranks/rewards** — needs AFK-aware playtime accumulation | later |
-| 9 | **PlaceholderAPI + messages.yml** — adoption polish | later |
-| — | Weekly/monthly leaderboards — deferred: vanilla keeps lifetime totals only, needs a snapshot-and-delta system | deferred |
-| — | TR / Elo rating — dropped for SMP (was a PvP-competition feature) | dropped |
+| 1 | **Death log** — `/deaths` style page in GUI, coordinates + cause + time, click-to-copy in chat; persisted to `deaths.json`; website endpoint + page | ✅ done |
+| 2 | **Advancement progress** — "87/122 completed" with remaining list in GUI (online via API, offline via advancements file); website endpoint + page | ✅ done |
+| 3 | **Stats-scan service** → all-time leaderboards (playtime, blocks, mobs, distance, deaths) + server-wide totals; cached async scan of every stats file; website endpoints | ✅ done |
+| 4 | **Profile personalization** — bio, base coordinates, favorite activity in `playerdata.json`, shown in GUI + website | ✅ done |
+| 5 | **`/stats compare <player>`** — side-by-side comparison screen | ✅ done |
+| 6 | **Discord webhook** — fights, challenge advancements, milestones, deaths (config-gated) | ✅ done |
+| 7 | **AFK detection** — `Player#getIdleDuration()` badge on the website home grid | ✅ done |
+| 8 | **Website Phase 2** — opt-out (`/stats hide`), rate limiting, search autocomplete, leaderboard pages | ✅ done |
+| 9 | **Weekly leaderboards** — hourly snapshots (`snapshots.json`), 7-day deltas, `/top weekly <category>`, website period toggle, in-game toggle button | ✅ done |
+| 10 | **Playtime ranks/rewards** — hour thresholds with names + console commands, broadcasts, website rank display | ✅ done |
+| 11 | **PlaceholderAPI** — %playerinfo_*% placeholders | ✅ done |
+| 12 | **messages.yml** — all chat messages in MiniMessage format | ✅ done |
+| — | LuckPerms rank integration, deaths-graphs, multi-language | ideas |
 
 ## Files this adds/changes
 
