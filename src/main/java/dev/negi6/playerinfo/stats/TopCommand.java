@@ -36,9 +36,12 @@ public final class TopCommand implements CommandExecutor, TabCompleter {
                     NamedTextColor.RED));
             return true;
         }
-        LeaderboardService.Metric metric = parse(args.length == 0 ? "playtime" : args[0]);
+        boolean weekly = args.length >= 1 && args[0].equalsIgnoreCase("weekly");
+        String categoryName = weekly ? (args.length >= 2 ? args[1] : "playtime")
+                : (args.length >= 1 ? args[0] : "playtime");
+        LeaderboardService.Metric metric = parse(categoryName);
         if (metric == null) {
-            viewer.sendMessage(Component.text("Unknown category '" + args[0]
+            viewer.sendMessage(Component.text("Unknown category '" + categoryName
                     + "'. Categories: " + String.join(", ", CATEGORIES), NamedTextColor.RED));
             return true;
         }
@@ -47,7 +50,7 @@ public final class TopCommand implements CommandExecutor, TabCompleter {
                     NamedTextColor.YELLOW));
             return true;
         }
-        gui.openLeaderboard(viewer, metric, 0);
+        gui.openLeaderboard(viewer, metric, weekly, 0);
         return true;
     }
 
@@ -59,6 +62,19 @@ public final class TopCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
+            List<String> out = new java.util.ArrayList<>();
+            if ("weekly".startsWith(prefix)) {
+                out.add("weekly");
+            }
+            for (String category : CATEGORIES) {
+                if (category.startsWith(prefix)) {
+                    out.add(category);
+                }
+            }
+            return out;
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("weekly")) {
+            String prefix = args[1].toLowerCase(Locale.ROOT);
             return CATEGORIES.stream().filter(c -> c.startsWith(prefix)).toList();
         }
         return List.of();

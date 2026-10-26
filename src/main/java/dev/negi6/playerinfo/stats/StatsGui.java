@@ -56,6 +56,7 @@ public final class StatsGui {
     static final int SLOT_DEATHS = 34;
     static final int SLOT_DEATH_LOG = 21;
     static final int SLOT_ADVANCEMENTS = 23;
+    static final int SLOT_TOGGLE_PERIOD = 53;
 
     private static final DateTimeFormatter DATE_TIME =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
@@ -754,19 +755,47 @@ public final class StatsGui {
         return centimetres + " cm";
     }
 
-    public void openLeaderboard(Player viewer, LeaderboardService.Metric metric, int page) {
-        List<LeaderboardService.Entry> top = leaderboards.top(metric, 50);
-        List<Entry> entries = new ArrayList<>();
-        List<Object> keys = new ArrayList<>();
-        int rank = 1;
-        for (LeaderboardService.Entry entry : top) {
-            keys.add(entry.player());
-            entries.add(new Entry(playerName(entry.player()), rank,
-                    leaderboardHead(entry.player(), rank, valueText(metric, entry.value()))));
-            rank++;
+    public void openLeaderboard(Player viewer, LeaderboardService.Metric metric, boolean weekly, int page) {
+        // Weekly K/D deltas are not meaningful — show weekly kills instead.
+        if (weekly && metric == LeaderboardService.Metric.KD) {
+            metric = LeaderboardService.Metric.KILLS;
         }
-        openListPage(viewer, null, entries, keys, StatsMenuHolder.Screen.LEADERBOARD,
-                null, null, "Top " + label(metric), page);
+        List<LeaderboardService.Entry> top = weekly
+                ? leaderboards.topWeekly(metric, 50)
+                : leaderboards.top(metric, 50);
+        String title = "Top " + label(metric) + (weekly ? " — Weekly" : "");
+        int pages = Math.max(1, (top.size() + 45 - 1) / 45);
+        int current = Math.min(Math.max(page, 0), pages - 1);
+        StatsMenuHolder holder = new StatsMenuHolder(null, StatsMenuHolder.Screen.LEADERBOARD,
+                null, current, null);
+        holder.category(metric.name());
+        holder.weekly(weekly);
+        Inventory inv = newMenu(holder, title);
+        List<Object> keys = new ArrayList<>();
+        int start = current * 45;
+        int rank = start + 1;
+        for (int i = start; i < Math.min(top.size(), start + 45); i++) {
+            LeaderboardService.Entry entry = top.get(i);
+            keys.add(entry.player());
+            inv.setItem(i - start, leaderboardHead(entry.player(), rank++,
+                    valueText(metric, entry.value())));
+        }
+        holder.entryKeys(keys);
+        inv.setItem(SLOT_BACK, button(Material.BARRIER, "Close", "Return to game"));
+        if (pages > 1) {
+            if (current > 0) {
+                inv.setItem(SLOT_PREV, button(Material.ARROW, "Previous Page", "Page " + current));
+            }
+            inv.setItem(SLOT_PAGE, item(Material.PAPER,
+                    Component.text("Page " + (current + 1) + " / " + pages, NamedTextColor.GOLD), List.of()));
+            if (current < pages - 1) {
+                inv.setItem(SLOT_NEXT, button(Material.ARROW, "Next Page", "Page " + (current + 2)));
+            }
+        }
+        inv.setItem(SLOT_TOGGLE_PERIOD, item(Material.CLOCK,
+                Component.text(weekly ? "Showing: Weekly" : "Showing: All Time", NamedTextColor.YELLOW),
+                List.of(Component.text("Click to switch", NamedTextColor.DARK_GRAY))));
+        viewer.openInventory(inv);
     }
 
     private ItemStack leaderboardHead(UUID player, int rank, String valueText) {

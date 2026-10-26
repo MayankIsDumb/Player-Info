@@ -61,6 +61,26 @@ public final class StatsMenuHolder implements InventoryHolder {
         return other;
     }
 
+    /** Leaderboard category (metric name) for the LEADERBOARD screen. */
+    private String category;
+    private boolean weekly;
+
+    public String category() {
+        return category;
+    }
+
+    void category(String category) {
+        this.category = category;
+    }
+
+    public boolean weekly() {
+        return weekly;
+    }
+
+    void weekly(boolean weekly) {
+        this.weekly = weekly;
+    }
+
     /** Per-slot keys for clickable entries (EntityType, UUID or fight id). */
     public List<Object> entryKeys() {
         return entryKeys;

@@ -154,15 +154,18 @@ async function renderFights() {
   app.innerHTML = `<section class="panel"><h2>Recent fights</h2>${fightCards(data.fights)}</section>`;
 }
 
-async function renderLeaderboard(category) {
+async function renderLeaderboard(category, weekly) {
   app.innerHTML = '<div class="loading">Loading leaderboard...</div>';
-  const data = await api('leaderboard/' + encodeURIComponent(category));
+  const data = await api('leaderboard/' + encodeURIComponent(category)
+      + (weekly ? '?period=weekly' : ''));
+  const toggleHref = '#/leaderboard/' + (weekly ? '' : 'weekly/') + category;
   const rows = data.entries.map((e) => `
     <tr><td style="width:60px;color:var(--gold)">#${e.rank}</td>
     <td><img src="${head(e.name, 24)}" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle;border-radius:3px">
     <a href="#/player/${encodeURIComponent(e.name)}" style="margin-left:8px">${esc(e.name)}</a></td>
     <td style="text-align:right;font-family:Consolas,monospace;color:var(--aqua)">${fmt(e.value)}</td></tr>`).join('');
-  app.innerHTML = `<section class="panel"><h2>Leaderboard — ${esc(data.category)}</h2>
+  app.innerHTML = `<section class="panel"><h2>Leaderboard — ${esc(data.category)}
+      <a class="chip" href="${toggleHref}">${weekly ? 'Show all-time' : 'Show weekly'}</a></h2>
     <table class="stat-table">${rows}</table></section>`;
 }
 
@@ -184,8 +187,10 @@ async function renderPage(hash) {
     await renderProfile(decodeURIComponent(hash.slice('/player/'.length)));
   } else if (hash === '/fights') {
     await renderFights();
+  } else if (hash.startsWith('/leaderboard/weekly/')) {
+    await renderLeaderboard(decodeURIComponent(hash.slice('/leaderboard/weekly/'.length)), true);
   } else if (hash.startsWith('/leaderboard/')) {
-    await renderLeaderboard(decodeURIComponent(hash.slice('/leaderboard/'.length)));
+    await renderLeaderboard(decodeURIComponent(hash.slice('/leaderboard/'.length)), false);
   } else {
     await renderHome();
   }

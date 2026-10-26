@@ -171,7 +171,8 @@ public final class WebServerService {
         if (path.startsWith("/api/leaderboard/")) {
             String category = URLDecoder.decode(path.substring("/api/leaderboard/".length()),
                     StandardCharsets.UTF_8);
-            com.google.gson.JsonObject json = WebJson.leaderboardJson(leaderboards, category, 50);
+            boolean weekly = "weekly".equals(queryParam(exchange, "period"));
+            com.google.gson.JsonObject json = WebJson.leaderboardJson(leaderboards, category, 50, weekly);
             if (json == null) {
                 respond(exchange, 404, "{\"error\":\"unknown category\"}");
                 return;

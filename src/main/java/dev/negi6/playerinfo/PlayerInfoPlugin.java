@@ -89,7 +89,7 @@ public final class PlayerInfoPlugin extends JavaPlugin {
         }
 
         leaderboards = new LeaderboardService(this,
-                getConfig().getLong("leaderboard-refresh-minutes", 5), optOut);
+                getConfig().getLong("leaderboard-refresh-minutes", 5), optOut, getDataFolder());
         leaderboards.start();
 
         StatsGui gui = new StatsGui(tracker, fightTracker, deathStore, leaderboards, playerData);

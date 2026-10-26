@@ -20,6 +20,7 @@ import dev.negi6.playerinfo.stats.StatsSource;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -72,16 +73,24 @@ public final class WebJson {
         return o;
     }
 
-    public static JsonObject leaderboardJson(LeaderboardService leaderboards, String category, int limit) {
+    public static JsonObject leaderboardJson(LeaderboardService leaderboards, String category,
+                                             int limit, boolean weekly) {
         LeaderboardService.Metric metric = LeaderboardService.parseMetric(category);
         if (metric == null) {
             return null;
         }
+        if (weekly && metric == LeaderboardService.Metric.KD) {
+            metric = LeaderboardService.Metric.KILLS;
+        }
         JsonObject o = new JsonObject();
         o.addProperty("category", category);
+        o.addProperty("weekly", weekly);
         JsonArray entries = new JsonArray();
         int rank = 1;
-        for (LeaderboardService.Entry entry : leaderboards.top(metric, limit)) {
+        List<LeaderboardService.Entry> top = weekly
+                ? leaderboards.topWeekly(metric, limit)
+                : leaderboards.top(metric, limit);
+        for (LeaderboardService.Entry entry : top) {
             JsonObject e = new JsonObject();
             e.addProperty("rank", rank++);
             e.addProperty("uuid", entry.player().toString());

@@ -6,6 +6,9 @@
 
 package dev.negi6.playerinfo.stats;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.File;
@@ -65,15 +68,22 @@ public final class LeaderboardService {
     private final JavaPlugin plugin;
     private final long refreshMs;
     private final OptOutStore optOut;
+    private final File snapshotsFile;
+    private final List<Snapshot> snapshots = new ArrayList<>();
     private volatile Map<UUID, long[]> aggregates = Map.of();
     private volatile Map<UUID, String> names = Map.of();
     private volatile long lastScan;
     private BukkitTask task;
 
-    public LeaderboardService(JavaPlugin plugin, long refreshMinutes, OptOutStore optOut) {
+    /** A point-in-time copy of every player's aggregate values. */
+    public record Snapshot(long time, Map<UUID, long[]> values) {}
+
+    public LeaderboardService(JavaPlugin plugin, long refreshMinutes, OptOutStore optOut, File dataFolder) {
         this.plugin = plugin;
         this.refreshMs = Math.max(1, refreshMinutes) * 60_000L;
         this.optOut = optOut;
+        this.snapshotsFile = new File(dataFolder, "snapshots.json");
+        loadSnapshots();
     }
 
     public record SearchHit(UUID uuid, String name) {}
@@ -149,6 +159,101 @@ public final class LeaderboardService {
         return new ArrayList<>(out.subList(0, Math.min(limit, out.size())));
     }
 
+    /**
+     * Leaderboard over the last 7 days: current totals minus the newest
+     * snapshot that is at least 7 days old (or the oldest snapshot available,
+     * in which case the window is shorter). Needs a few days of history to be
+     * complete.
+     */
+    public List<Entry> topWeekly(Metric metric, int limit) {
+        if (snapshots.isEmpty()) {
+            return List.of();
+        }
+        long cutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000;
+        Snapshot base = null;
+        for (Snapshot snapshot : snapshots) {
+            if (snapshot.time() <= cutoff) {
+                base = snapshot;
+            }
+        }
+        if (base == null) {
+            base = snapshots.getFirst();
+        }
+        List<Entry> out = new ArrayList<>();
+        for (var e : aggregates.entrySet()) {
+            if (optOut.isHidden(e.getKey())) {
+                continue;
+            }
+            long now = e.getValue()[metric.ordinal()];
+            long[] baseValues = base.values().get(e.getKey());
+            long before = baseValues == null ? 0 : baseValues[metric.ordinal()];
+            long delta = now - before;
+            if (delta > 0) {
+                out.add(new Entry(e.getKey(), delta));
+            }
+        }
+        out.sort(Comparator.comparingLong(Entry::value).reversed());
+        return new ArrayList<>(out.subList(0, Math.min(limit, out.size())));
+    }    private void recordSnapshot(Map<UUID, long[]> parsed) {
+        long now = System.currentTimeMillis();
+        snapshots.add(new Snapshot(now, parsed));
+        long pruneBefore = now - 8L * 24 * 60 * 60 * 1000;
+        snapshots.removeIf(snapshot -> snapshot.time() < pruneBefore);
+        saveSnapshots();
+    }
+
+    private void loadSnapshots() {
+        if (!snapshotsFile.isFile()) {
+            return;
+        }
+        try (Reader reader = Files.newBufferedReader(snapshotsFile.toPath(), StandardCharsets.UTF_8)) {
+            JsonArray array = JsonParser.parseReader(reader).getAsJsonArray();
+            for (JsonElement element : array) {
+                JsonObject o = element.getAsJsonObject();
+                Map<UUID, long[]> values = new HashMap<>();
+                for (var entry : o.getAsJsonObject("values").entrySet()) {
+                    JsonArray slots = entry.getValue().getAsJsonArray();
+                    long[] parsed = new long[SLOTS];
+                    for (int i = 0; i < SLOTS && i < slots.size(); i++) {
+                        parsed[i] = slots.get(i).getAsLong();
+                    }
+                    values.put(UUID.fromString(entry.getKey()), parsed);
+                }
+                snapshots.add(new Snapshot(o.get("time").getAsLong(), values));
+            }
+            snapshots.sort(Comparator.comparingLong(Snapshot::time));
+        } catch (Exception loadFailure) {
+            plugin.getLogger().warning("[PlayerInfo] Could not load snapshots: "
+                    + loadFailure.getMessage());
+        }
+    }
+
+    private void saveSnapshots() {
+        try {
+            JsonArray array = new JsonArray();
+            for (Snapshot snapshot : snapshots) {
+                JsonObject o = new JsonObject();
+                o.addProperty("time", snapshot.time());
+                JsonObject values = new JsonObject();
+                for (var entry : snapshot.values().entrySet()) {
+                    JsonArray slots = new JsonArray();
+                    for (long slot : entry.getValue()) {
+                        slots.add(slot);
+                    }
+                    values.add(entry.getKey().toString(), slots);
+                }
+                o.add("values", values);
+                array.add(o);
+            }
+            snapshotsFile.getParentFile().mkdirs();
+            Files.writeString(snapshotsFile.toPath(),
+                    new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(array));
+        } catch (Exception saveFailure) {
+            plugin.getLogger().warning("[PlayerInfo] Could not save snapshots: "
+                    + saveFailure.getMessage());
+        }
+    }
+
     /** Aggregate value for one player and metric, or null if never scanned. */
     public Long aggregateOf(UUID uuid, Metric metric) {
         long[] values = aggregates.get(uuid);
@@ -183,6 +288,10 @@ public final class LeaderboardService {
                 aggregates = parsed;
                 names = parsedNames;
                 lastScan = System.currentTimeMillis();
+                // Hourly point-in-time snapshots for the weekly leaderboards.
+                if (snapshots.isEmpty() || lastScan - snapshots.getLast().time() >= 60L * 60 * 1000) {
+                    recordSnapshot(parsed);
+                }
                 plugin.getLogger().info("[PlayerInfo] Leaderboards updated for "
                         + parsed.size() + " players.");
             });

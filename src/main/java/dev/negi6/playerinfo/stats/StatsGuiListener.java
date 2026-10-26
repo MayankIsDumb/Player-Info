@@ -121,6 +121,17 @@ public final class StatsGuiListener implements Listener {
             case LEADERBOARD -> {
                 if (slot == StatsGui.SLOT_BACK) {
                     Bukkit.getScheduler().runTask(plugin, (Runnable) viewer::closeInventory);
+                } else if (slot == StatsGui.SLOT_TOGGLE_PERIOD && holder.category() != null) {
+                    LeaderboardService.Metric metric = LeaderboardService.parseMetric(holder.category());
+                    if (metric != null) {
+                        gui.openLeaderboard(viewer, metric, !holder.weekly(), 0);
+                    }
+                } else if (slot == StatsGui.SLOT_PREV) {
+                    gui.openLeaderboard(viewer, LeaderboardService.parseMetric(holder.category()),
+                            holder.weekly(), holder.page() - 1);
+                } else if (slot == StatsGui.SLOT_NEXT) {
+                    gui.openLeaderboard(viewer, LeaderboardService.parseMetric(holder.category()),
+                            holder.weekly(), holder.page() + 1);
                 } else if (slot < 45 && slot < holder.entryKeys().size()
                         && holder.entryKeys().get(slot) instanceof UUID player) {
                     gui.open(viewer, StatsSource.ofUuid(player),
